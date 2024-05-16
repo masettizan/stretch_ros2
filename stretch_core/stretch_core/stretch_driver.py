@@ -348,7 +348,7 @@ class StretchDriver(Node):
         ##################################################
         # publish homed status
         homed_status = Bool()
-        homed_status.data = bool(self.robot.is_calibrated())
+        homed_status.data = bool(self.robot.is_homed())
         self.homed_pub.publish(homed_status)
 
         # publish runstop event
@@ -452,6 +452,10 @@ class StretchDriver(Node):
         gx = imu_status['gx']
         gy = imu_status['gy']
         gz = imu_status['gz']
+        qw = imu_status['qw']
+        qx = imu_status['qx']
+        qy = imu_status['qy']
+        qz = imu_status['qz']
 
         i = Imu()
         i.header.stamp = current_time
@@ -459,6 +463,11 @@ class StretchDriver(Node):
         i.angular_velocity.x = gx
         i.angular_velocity.y = gy
         i.angular_velocity.z = gz
+
+        i.orientation.w = qw
+        i.orientation.x = qx
+        i.orientation.y = qy
+        i.orientation.z = qz
 
         i.linear_acceleration.x = ax
         i.linear_acceleration.y = ay
@@ -497,7 +506,9 @@ class StretchDriver(Node):
         if (self.prev_runstop_state == None and runstop_event.data) or (self.prev_runstop_state != None and runstop_event.data != self.prev_runstop_state):
             self.runstop_the_robot(runstop_event.data, just_change_mode=True)
         self.prev_runstop_state = runstop_event.data
-        
+
+        if self.robot.pimu.params.get('ros_fan_on', True):
+            self.robot.pimu.set_fan_on()
         self.robot.non_dxl_thread.step()
         if not self.robot_mode == 'trajectory':
             self.robot.push_command() # Main push command
@@ -512,7 +523,7 @@ class StretchDriver(Node):
         if code_to_run:
             code_to_run()
 
-        self.get_logger().info('{0}: Changed to mode = {1}'.format(self.node_name, self.robot_mode))
+        self.get_logger().info(f'Changed to mode = {self.robot_mode}')
         self.robot_mode_rwlock.release_write()
 
     # TODO : add a freewheel mode or something comparable for the mobile base?
@@ -643,9 +654,50 @@ class StretchDriver(Node):
         self.runstop_the_robot(request.data)
 
         response.success = True
-        response.message = 'is_runstopped: {0}'.format(request.data)
+        response.message = f'is_runstopped: {request.data}'
         return response
-    
+
+    def get_joint_states_callback(self, request, response):
+        joint_limits = JointState()
+        joint_limits.header.stamp = self.get_clock().now().to_msg()
+        cgs = list(set(self.joint_trajectory_action.command_groups) - set([self.joint_trajectory_action.mobile_base_cg, self.joint_trajectory_action.gripper_cg]))
+        for cg in cgs:
+            lower_limit, upper_limit = cg.range
+            joint_limits.name.append(cg.name)
+            joint_limits.position.append(lower_limit) # Misuse position array to mean lower limits
+            joint_limits.velocity.append(upper_limit) # Misuse velocity array to mean upper limits
+
+        gripper_cg = self.joint_trajectory_action.gripper_cg
+        if gripper_cg is not None:
+            lower_aperture_limit, upper_aperture_limit = gripper_cg.range_aperture_m
+            joint_limits.name.append('gripper_aperture')
+            joint_limits.position.append(lower_aperture_limit)
+            joint_limits.velocity.append(upper_aperture_limit)
+
+            lower_finger_limit, upper_finger_limit = gripper_cg.range_finger_rad
+            joint_limits.name.append('joint_gripper_finger_left')
+            joint_limits.position.append(lower_finger_limit)
+            joint_limits.velocity.append(upper_finger_limit)
+            joint_limits.name.append('joint_gripper_finger_right')
+            joint_limits.position.append(lower_finger_limit)
+            joint_limits.velocity.append(upper_finger_limit)
+
+        self.joint_limits_pub.publish(joint_limits)
+        response.success = True
+        response.message = ''
+        return response
+
+    def self_collision_avoidance_callback(self, request, response):
+        enable_self_collision_avoidance = request.data
+        if enable_self_collision_avoidance:
+            self.robot.enable_collision_mgmt()
+        else:
+            self.robot.disable_collision_mgmt()
+
+        response.success = True
+        response.message = f'is self collision avoidance enabled: {enable_self_collision_avoidance}'
+        return response
+
     def home_the_robot(self):
         self.robot_mode_rwlock.acquire_read()
         can_home = self.robot_mode in self.control_modes
@@ -729,7 +781,7 @@ class StretchDriver(Node):
             self.get_logger().fatal('Robot startup failed.')
             rclpy.shutdown()
             exit()
-        if not self.robot.is_calibrated():
+        if not self.robot.is_homed():
             self.get_logger().warn("Robot not homed. Call /home_the_robot service.")
             
         # Create Gamepad Teleop instance    
@@ -741,7 +793,7 @@ class StretchDriver(Node):
         if mode not in self.control_modes:
             self.get_logger().warn(f'{self.node_name} given invalid mode={mode}, using position instead')
             mode = 'position'
-        self.get_logger().info('mode = ' + str(mode))
+        self.get_logger().debug('mode = ' + str(mode))
         if mode == "position":
             self.turn_on_position_mode()
         elif mode == "navigation":
@@ -759,38 +811,38 @@ class StretchDriver(Node):
 
         large_ang = np.radians(45.0)
 
-        self.declare_parameter('controller_calibration_file')
+        self.declare_parameter('controller_calibration_file', 'NOT SET')
         filename = self.get_parameter('controller_calibration_file').value
-        self.get_logger().info('Loading controller calibration parameters for the head from YAML file named {0}'.format(filename))
+        self.get_logger().debug('Loading controller calibration parameters for the head from YAML file named {0}'.format(filename))
         with open(filename, 'r') as fid:
             self.controller_parameters = yaml.safe_load(fid)
 
-            self.get_logger().info('controller parameters loaded = {0}'.format(self.controller_parameters))
+            self.get_logger().debug('controller parameters loaded = {0}'.format(self.controller_parameters))
 
             self.head_tilt_calibrated_offset_rad = self.controller_parameters['tilt_angle_offset']
             ang = self.head_tilt_calibrated_offset_rad
             if (abs(ang) > large_ang):
                 self.get_logger().warn('self.head_tilt_calibrated_offset_rad HAS AN UNUSUALLY LARGE MAGNITUDE')
-            self.get_logger().info('self.head_tilt_calibrated_offset_rad in degrees ='
+            self.get_logger().debug('self.head_tilt_calibrated_offset_rad in degrees ='
                                    ' {0}'.format(np.degrees(self.head_tilt_calibrated_offset_rad)))
 
             self.head_pan_calibrated_offset_rad = self.controller_parameters['pan_angle_offset']
             ang = self.head_pan_calibrated_offset_rad
             if (abs(ang) > large_ang):
                 self.get_logger().warn('self.head_pan_calibrated_offset_rad HAS AN UNUSUALLY LARGE MAGNITUDE')
-            self.get_logger().info('self.head_pan_calibrated_offset_rad in degrees ='
+            self.get_logger().debug('self.head_pan_calibrated_offset_rad in degrees ='
                                    ' {0}'.format(np.degrees(self.head_pan_calibrated_offset_rad)))
 
             self.head_pan_calibrated_looked_left_offset_rad = self.controller_parameters['pan_looked_left_offset']
             ang = self.head_pan_calibrated_looked_left_offset_rad
             if (abs(ang) > large_ang):
                 self.get_logger().warn('self.head_pan_calibrated_looked_left_offset_rad HAS AN UNUSUALLY LARGE MAGNITUDE')
-            self.get_logger().info(
+            self.get_logger().debug(
                 'self.head_pan_calibrated_looked_left_offset_rad in degrees = {0}'.format(
                     np.degrees(self.head_pan_calibrated_looked_left_offset_rad)))
 
             self.head_tilt_backlash_transition_angle_rad = self.controller_parameters['tilt_angle_backlash_transition']
-            self.get_logger().info(
+            self.get_logger().debug(
                 'self.head_tilt_backlash_transition_angle_rad in degrees = {0}'.format(
                     np.degrees(self.head_tilt_backlash_transition_angle_rad)))
 
@@ -798,7 +850,7 @@ class StretchDriver(Node):
             ang = self.head_tilt_calibrated_looking_up_offset_rad
             if (abs(ang) > large_ang):
                 self.get_logger().warn('self.head_tilt_calibrated_looking_up_offset_rad HAS AN UNUSUALLY LARGE MAGNITUDE')
-            self.get_logger().info(
+            self.get_logger().debug(
                 'self.head_tilt_calibrated_looking_up_offset_rad in degrees = {0}'.format(
                     np.degrees(self.head_tilt_calibrated_looking_up_offset_rad)))
 
@@ -806,7 +858,7 @@ class StretchDriver(Node):
             m = self.wrist_extension_calibrated_retracted_offset_m
             if (abs(m) > 0.05):
                 self.get_logger().warn('self.wrist_extension_calibrated_retracted_offset_m HAS AN UNUSUALLY LARGE MAGNITUDE')
-            self.get_logger().info(
+            self.get_logger().debug(
                 'self.wrist_extension_calibrated_retracted_offset_m in meters = {0}'.format(
                     self.wrist_extension_calibrated_retracted_offset_m))
 
@@ -840,25 +892,22 @@ class StretchDriver(Node):
         self.declare_parameter('timeout', 0.5)
         self.timeout_s = self.get_parameter('timeout').value
         self.timeout = Duration(seconds=self.timeout_s)
-        self.get_logger().info("{0} rate = {1} Hz".format(self.node_name, self.joint_state_rate))
-        self.get_logger().info("{0} timeout = {1} s".format(self.node_name, self.timeout_s))
-
-        self.declare_parameter('use_fake_mechaduinos', False)
-        self.use_fake_mechaduinos = self.get_parameter('use_fake_mechaduinos').value
-        self.get_logger().info("{0} use_fake_mechaduinos = {1}".format(self.node_name, self.use_fake_mechaduinos))
+        self.get_logger().info(f"rate = {self.joint_state_rate} Hz")
+        self.get_logger().info(f"twist timeout = {self.timeout_s} s")
 
         self.base_frame_id = 'base_link'
-        self.get_logger().info("{0} base_frame_id = {1}".format(self.node_name, self.base_frame_id))
+        self.get_logger().info(f"base_frame_id = {self.base_frame_id}")
         self.odom_frame_id = 'odom'
-        self.get_logger().info("{0} odom_frame_id = {1}".format(self.node_name, self.odom_frame_id))
+        self.get_logger().info(f"odom_frame_id = {self.odom_frame_id}")
 
         self.joint_state_pub = self.create_publisher(JointState, 'joint_states', 1)
+        self.joint_limits_pub = self.create_publisher(JointState, 'joint_limits', 1)
 
         self.last_twist_time = self.get_clock().now()
         self.last_gamepad_joy_time = self.get_clock().now()
 
         # start action server for joint trajectories
-        self.declare_parameter('fail_out_of_range_goal', True)
+        self.declare_parameter('fail_out_of_range_goal', False)
         self.fail_out_of_range_goal = self.get_parameter('fail_out_of_range_goal').value
         
         self.declare_parameter('action_server_rate', 30.0)
@@ -897,7 +946,15 @@ class StretchDriver(Node):
         self.runstop_service = self.create_service(SetBool,
                                                    '/runstop',
                                                    self.runstop_service_callback)
-        
+
+        self.get_joint_states = self.create_service(Trigger,
+                                                    '/get_joint_states',
+                                                    self.get_joint_states_callback)
+
+        self.self_collision_avoidance = self.create_service(SetBool,
+                                                            '/self_collision_avoidance',
+                                                            self.self_collision_avoidance_callback)
+
         # start loop to command the mobile base velocity, publish
         # odometry, and publish joint states
         timer_period = 1.0 / self.joint_state_rate
@@ -909,14 +966,14 @@ def main():
         rclpy.init()
         executor = MultiThreadedExecutor(num_threads=2)
         node = StretchDriver()
-        joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
+        node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
         executor.add_node(node)
-        executor.add_node(joint_trajectory_action)
+        executor.add_node(node.joint_trajectory_action)
         try:
             executor.spin()
         finally:
             executor.shutdown()
-            joint_trajectory_action.destroy_node()
+            node.joint_trajectory_action.destroy_node()
             node.destroy_node()
     except (KeyboardInterrupt, ThreadServiceExit):
         node.gamepad_teleop.stop()
