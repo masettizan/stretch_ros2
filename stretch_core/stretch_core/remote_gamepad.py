@@ -26,7 +26,8 @@ class StretchRemoteGamepad(Node):
         out_msg = unpack_gamepad_state_to_joy(gamepad_state)
         out_msg.header.stamp = current_time
         if PRINT_DEBUG:
-            print(pprint(unpack_joy_to_gamepad_state(out_msg)))
+            print(f"------------ Gamepad State -------------")
+            pprint(unpack_joy_to_gamepad_state(out_msg))
         return out_msg
     
     def publish_message(self):
