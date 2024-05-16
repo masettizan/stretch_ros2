@@ -187,17 +187,25 @@ class ArucoMarker:
     
     def update(self, corners, timestamp, frame_number, camera_info, depth_image=None):
         self.ready = True
-        self.corners = corners        
+        self.corners = corners
         self.timestamp = timestamp
         self.frame_number = frame_number
         self.camera_info = camera_info
         self.depth_image = depth_image
         self.camera_matrix = np.reshape(self.camera_info.k, (3,3))
         self.distortion_coefficients = np.array(self.camera_info.d)
-        rvecs, tvecs, unknown_variable = aruco.estimatePoseSingleMarkers([self.corners],
-                                                                         self.length_of_marker_mm,
-                                                                         self.camera_matrix,
-                                                                         self.distortion_coefficients)
+        rvecs = np.zeros((len(self.corners), 1, 3), dtype=np.float64)
+        tvecs = np.zeros((len(self.corners), 1, 3), dtype=np.float64)
+        points_3D = np.array([
+            (-self.length_of_marker_mm / 2, self.length_of_marker_mm / 2, 0),
+            (self.length_of_marker_mm / 2, self.length_of_marker_mm / 2, 0),
+            (self.length_of_marker_mm / 2, -self.length_of_marker_mm / 2, 0),
+            (-self.length_of_marker_mm / 2, -self.length_of_marker_mm / 2, 0),
+        ])
+        for marker_num in range(len(self.corners)):
+            unknown_variable, rvecs_ret, tvecs_ret = cv2.solvePnP(objectPoints=points_3D, imagePoints=self.corners[marker_num], cameraMatrix=self.camera_matrix, distCoeffs=self.distortion_coefficients)                                              
+            rvecs[marker_num][:] = np.transpose(rvecs_ret)
+            tvecs[marker_num][:] = np.transpose(tvecs_ret)
         self.aruco_rotation = rvecs[0][0]
         
         # Convert ArUco position estimate to be in meters.
@@ -534,6 +542,7 @@ class ArucoMarkerCollection:
         self.aruco_detection_parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
         self.aruco_detection_parameters.cornerRefinementWinSize = 2
         self.collection = {}
+        self.detector = aruco.ArucoDetector(self.aruco_dict, self.aruco_detection_parameters)
         self.frame_number = 0
 
     def __iter__(self):
@@ -545,7 +554,7 @@ class ArucoMarkerCollection:
                 yield marker
 
     def draw_markers(self, image):
-        return aruco.drawDetectedMarkers(image, self.aruco_corners, self.aruco_ids)
+        return self.detector.drawDetectedMarkers(image, self.aruco_corners, self.aruco_ids)
 
     def broadcast_tf(self, tf_broadcaster):
         # Create TF frames for each of the markers. Only broadcast each
@@ -562,9 +571,7 @@ class ArucoMarkerCollection:
         self.depth_image = depth_image
         self.gray_image = cv2.cvtColor(self.rgb_image, cv2.COLOR_BGR2GRAY)
         image_height, image_width = self.gray_image.shape
-        self.aruco_corners, self.aruco_ids, aruco_rejected_image_points = aruco.detectMarkers(self.gray_image,
-                                                                                              self.aruco_dict,
-                                                                                              parameters = self.aruco_detection_parameters)
+        self.aruco_corners, self.aruco_ids, aruco_rejected_image_points = self.detector.detectMarkers(self.gray_image)
         if self.aruco_ids is None:
             num_detected = 0
         else:
@@ -622,17 +629,16 @@ class DetectArucoNode(Node):
         self.show_debug_images = False
         self.publish_marker_point_clouds = False
 
-        # Reading parameters from the stretch_marker_dict.yaml file and storing values
+        # Reading node parameters prefixed as 'aruco_marker_info' and storing values
         # in a dictionary called marker_info
-        param_list = ['130', '131', '132', '133', '134', '246', '247', '248', '249', '10', '21', 'default']
-        key_list = ['length_mm', 'use_rgb_only', 'name', 'link']
-        dict = {}
+        param_dict = self.get_parameters_by_prefix('aruco_marker_info')
         self.marker_info = {}
-        for aruco_id in param_list:
-            for key in key_list:
-                dict[key] = self.get_parameter_or('aruco_marker_info.{0}.{1}'.format(aruco_id, key)).value
-            self.marker_info[aruco_id] = dict
-            dict = {}
+        for key in param_dict:
+            try:
+                self.marker_info[key.split('.')[0]][key.split('.')[1]] = self.get_parameter_or('aruco_marker_info.{}'.format(key)).value
+            except KeyError:
+                self.marker_info[key.split('.')[0]] = {}
+                self.marker_info[key.split('.')[0]][key.split('.')[1]] = self.get_parameter_or('aruco_marker_info.{}'.format(key)).value
 
         self.aruco_marker_collection = ArucoMarkerCollection(self.marker_info, self.show_debug_images)
 

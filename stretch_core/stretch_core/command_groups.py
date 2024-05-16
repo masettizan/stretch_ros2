@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import time
 import numpy as np
 import hello_helpers.hello_misc as hm
 from hello_helpers.simple_command_group import SimpleCommandGroup
@@ -185,8 +186,8 @@ class WristRollCommandGroup(SimpleCommandGroup):
         if node is None:
             return # cannot calculate range without Stretch Body handle
         range_ticks = node.robot.end_of_arm.motors['wrist_roll'].params['range_t']
-        range_rad = (node.robot.end_of_arm.motors['wrist_roll'].ticks_to_world_rad(range_ticks[1]),
-                     node.robot.end_of_arm.motors['wrist_roll'].ticks_to_world_rad(range_ticks[0]))
+        range_rad = (node.robot.end_of_arm.motors['wrist_roll'].ticks_to_world_rad(range_ticks[0]),
+                     node.robot.end_of_arm.motors['wrist_roll'].ticks_to_world_rad(range_ticks[1]))
         self.range = range_rad
 
     def init_execution(self, robot, robot_status, **kwargs):
@@ -288,6 +289,9 @@ class GripperCommandGroup(SimpleCommandGroup):
                 gripper_robotis_error = self.gripper_conversion.aperture_to_robotis(gripper_error)
             elif (self.name == 'joint_gripper_finger_left') or (self.name == 'joint_gripper_finger_right'):
                 gripper_robotis_error = self.gripper_conversion.finger_to_robotis(gripper_error)
+            sentry_timeout_start = time.time()
+            while robot.end_of_arm.get_joint('stretch_gripper').status['stall_overload'] and time.time() - sentry_timeout_start < 1.0:
+                time.sleep(0.05)
             robot.end_of_arm.move_by('stretch_gripper',
                                      gripper_robotis_error,
                                      v_r=self.goal['velocity'],
