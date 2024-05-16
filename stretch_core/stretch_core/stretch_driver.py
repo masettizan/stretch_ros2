@@ -348,7 +348,7 @@ class StretchDriver(Node):
         ##################################################
         # publish homed status
         homed_status = Bool()
-        homed_status.data = bool(self.robot.is_calibrated())
+        homed_status.data = bool(self.robot.is_homed())
         self.homed_pub.publish(homed_status)
 
         # publish runstop event
@@ -729,7 +729,7 @@ class StretchDriver(Node):
             self.get_logger().fatal('Robot startup failed.')
             rclpy.shutdown()
             exit()
-        if not self.robot.is_calibrated():
+        if not self.robot.is_homed():
             self.get_logger().warn("Robot not homed. Call /home_the_robot service.")
             
         # Create Gamepad Teleop instance    
