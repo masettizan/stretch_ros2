@@ -119,7 +119,7 @@ class JointTrajectoryAction(Node):
             self.node.robot_mode_rwlock.release_read()
             return self.error_callback(goal_handle, FollowJointTrajectory.Result.INVALID_GOAL, "Cannot execute goals while in mode={0}".format(self.node.robot_mode))
         
-        if self.node.robot_mode == 'position':
+        if self.node.robot_mode in ['position','navigation']:
             # For now, ignore goal time and configuration tolerances.
             commanded_joint_names = goal.trajectory.joint_names
             self.node.get_logger().info(("{0} joint_traj action: New trajectory received with joint_names = "
