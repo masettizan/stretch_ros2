@@ -56,13 +56,6 @@ def generate_launch_description():
                '/rs_launch.py'])
           )
 
-     d435i_accel_correction = Node(
-          package='stretch_core',
-          executable='d435i_accel_correction',
-          output='screen',
-          )
-
      return LaunchDescription(declare_configurable_parameters(configurable_parameters) + [
           realsense_launch,
-          d435i_accel_correction,
           ])

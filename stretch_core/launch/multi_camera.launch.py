@@ -7,8 +7,7 @@ from launch_ros.actions import Node
 import copy
 from launch.substitutions import LaunchConfiguration
 import sys
-import pathlib
-sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
+sys.path.append(str(os.path.join(get_package_share_directory('realsense2_camera'), 'launch')))
 import rs_launch
 
 json_path = os.path.join(get_package_share_directory('stretch_core'), 'config', 'HighAccuracyPreset.json')
