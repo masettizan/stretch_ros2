@@ -1,11 +1,15 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import DeclareLaunchArgument
+from launch.actions import OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+import copy
+from launch.substitutions import LaunchConfiguration
+import sys
+import pathlib
+sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
+import rs_launch
 
 json_path = os.path.join(get_package_share_directory('stretch_core'), 'config', 'HighAccuracyPreset.json')
 
@@ -68,26 +72,34 @@ configurable_parameters = [{'name': 'camera_namespace1',             'default': 
                            {'name': 'allow_no_texture_points2',      'default': 'true', 'description': "''"}, 
                           ]
 
-def declare_configurable_parameters(parameters):
-    return [DeclareLaunchArgument(param['name'], default_value=param['default'], description=param['description']) for param in parameters]
+def set_configurable_parameters(local_params):
+    return dict([(param['original_name'], LaunchConfiguration(param['name'])) for param in local_params])
 
-def set_configurable_parameters(parameters):
-    return dict([(param['name'], LaunchConfiguration(param['name'])) for param in parameters])
+def duplicate_params(general_params, posix):
+    local_params = copy.deepcopy(general_params)
+    for param in local_params:
+        param['original_name'] = param['name']
+        param['name'] += posix
+    return local_params
 
 def generate_launch_description():
-     realsense_launch = IncludeLaunchDescription(
-          PythonLaunchDescriptionSource([os.path.join(
-               get_package_share_directory('realsense2_camera'), 'launch'),
-               '/rs_multi_camera_launch.py'])
-          )
+    params1 = duplicate_params(rs_launch.configurable_parameters, '1')
+    params2 = duplicate_params(rs_launch.configurable_parameters, '2')
 
-     d435i_accel_correction = Node(
+    d435i_accel_correction = Node(
           package='stretch_core',
           executable='d435i_accel_correction',
           output='screen',
      )
-
-     return LaunchDescription(declare_configurable_parameters(configurable_parameters) + [
-          realsense_launch,
-          d435i_accel_correction,
-     ])
+    return LaunchDescription(
+        rs_launch.declare_configurable_parameters(configurable_parameters) +
+        rs_launch.declare_configurable_parameters(params1) +
+        rs_launch.declare_configurable_parameters(params2) +
+        [
+        OpaqueFunction(function=rs_launch.launch_setup,
+                       kwargs = {'params'           : set_configurable_parameters(params1),
+                                 'param_name_suffix': '1'}),
+        OpaqueFunction(function=rs_launch.launch_setup,
+                       kwargs = {'params'           : set_configurable_parameters(params2),
+                                 'param_name_suffix': '2'}),
+    ]+[d435i_accel_correction])
