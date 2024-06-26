@@ -77,9 +77,30 @@ class HeadPoseEstimator:
         orig_h, orig_w, c = rgb_image.shape
         face_image = rgb_image
         rot_h, rot_w, c = face_image.shape
-        # Assumes that the width is smaller than the height, and crop
-        # a width x width square image from the top.
-        square_face_image = face_image[:rot_w, :, :]
+
+        # create square image centered in a rectangular image
+        # crop based on shorter image dimension
+        if rot_h > rot_w: # portrait
+            d1 = (rot_h - rot_w) // 2
+            d2 = d1 + rot_w
+            square_face_image = face_image[d1:d2, :, :]
+            
+            # compute shift for landmark coordinates
+            dx = 0
+            dy = d1
+        elif rot_w > rot_h: # landscape
+            d1 = (rot_w - rot_h) // 2
+            d2 = d1 + rot_h
+            square_face_image = face_image[:, d1:d2, :]
+            
+            # compute shift for landmark coordinates
+            dx = d1
+            dy = 0
+        else: # already square
+            dx = 0
+            dy = 0
+            square_face_image = face_image
+
         sqr_h, sqr_w, c = square_face_image.shape
         network_image = renamed_cv2.resize(square_face_image, (300, 300))
         # Some magic numbers came from
@@ -97,10 +118,10 @@ class HeadPoseEstimator:
         boxes = []
 
         for x0, y0, x1, y1 in coordinates:
-            orig_y0 = y0
-            orig_y1 = y1
-            orig_x0 = x0
-            orig_x1 = x1
+            orig_y0 = y0 + dy
+            orig_y1 = y1 + dy
+            orig_x0 = x0 + dx
+            orig_x1 = x1 + dx
             face_id += 1
             bounding_box = [orig_x0, orig_y0, orig_x1, orig_y1]
             boxes.append(bounding_box)
