@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-from Cython.Build import cythonize
 from glob import glob
 
 package_name = 'stretch_demos'
