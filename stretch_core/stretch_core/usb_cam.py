@@ -153,6 +153,7 @@ class USBCamNode(Node):
             ret, image_uvc = self.uvc_camera.read()
             # Convert the OpenCV image to a ROS Image message
             self.image_msg = self.cv_bridge.cv2_to_imgmsg(image_uvc, encoding='bgr8')
+            self.image_msg.header.stamp = self.get_clock().now().to_msg()
             self.latency.update()
         except Exception as e:
             print(f"Error UVC Cam: {e}")
