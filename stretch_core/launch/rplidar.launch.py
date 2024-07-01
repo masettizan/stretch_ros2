@@ -6,9 +6,11 @@ from launch.actions import DeclareLaunchArgument, LogInfo, ExecuteProcess, Regis
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.event_handlers import OnShutdown
+from stretch_body.device import Device
 
-configurable_parameters = [{'name': 'serial_port',      'default': '/dev/hello-lrf',   'description':"'Specifying usb port to connected lidar'"},
-                           {'name': 'serial_baudrate',  'default': '115200',           'description':"'Specifying usb port baudrate to connected lidar'"},
+lidar_dev = Device('lidar')
+configurable_parameters = [{'name': 'serial_port',      'default': str(lidar_dev.params['usb_name']),   'description':"'Specifying usb port to connected lidar'"},
+                           {'name': 'serial_baudrate',  'default': str(lidar_dev.params['baud']),           'description':"'Specifying usb port baudrate to connected lidar'"},
                            {'name': 'frame_id',         'default': 'laser',            'description':"'Specifying frame_id of lidar'"},
                            {'name': 'inverted',         'default': 'false',            'description':"'Specifying whether or not to invert scan data'"},
                            {'name': 'angle_compensate', 'default': 'true',             'description':"'Specifying whether or not to enable angle_compensate of scan data'"},
