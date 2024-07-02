@@ -26,8 +26,8 @@ from std_srvs.srv import Trigger
 from std_srvs.srv import SetBool
 
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy, Float64MultiArray
-from std_msgs.msg import Bool, String
+from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
+from std_msgs.msg import Bool, String, Float64MultiArray
 
 from hello_helpers.gripper_conversion import GripperConversion
 from hello_helpers.joint_qpos_conversion import get_Idx
@@ -112,8 +112,8 @@ class StretchDriver(Node):
     
     def set_robot_streaming_position_callback(self, msg):
         self.robot_mode_rwlock.acquire_read()
-        # if self.robot_mode != 'position':
-        #     self.get_logger().error('{0} action server must be in streaming position mode to '
+        # if self.robot_mode != 'position' or self.robot_mode != 'navigation':
+        #     self.get_logger().error('{0} action server must be in position or navigation mode to '
         #                             'receive a joint state on joint_position_cmd.'
         #                             'Current mode = {1}.'.format(self.node_name, self.robot_mode))
         #     self.robot_mode_rwlock.release_read()
@@ -125,6 +125,9 @@ class StretchDriver(Node):
     def move_to_position(self, qpos):
         try:
             Idx = get_Idx(self.robot.params['tool'])
+            if len(qpos) != Idx.joints_N:
+                self.get_logger().error('Received qpos does not match the number of joints in the robot')
+                return
             self.robot.arm.move_to(qpos[Idx.ARM])
             self.robot.lift.move_to(qpos[Idx.LIFT])
             self.robot.end_of_arm.move_to('wrist_yaw', qpos[Idx.WRIST_YAW])
@@ -134,6 +137,7 @@ class StretchDriver(Node):
             self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
             if 'stretch_gripper' in self.robot.end_of_arm.joints:
                 self.robot.end_of_arm.move_to('stretch_gripper', qpos[Idx.GRIPPER])
+            print(f"Moved to position qpos: {qpos}")
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))
 
@@ -918,6 +922,8 @@ class StretchDriver(Node):
         self.create_subscription(Twist, "cmd_vel", self.set_mobile_base_velocity_callback, 1, callback_group=self.group)
         
         self.create_subscription(Joy, "gamepad_joy", self.set_gamepad_motion_callback, 1, callback_group=self.group)
+
+        self.create_subscription(Float64MultiArray, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.group)
 
         self.declare_parameter('rate', 30.0)
         self.joint_state_rate = self.get_parameter('rate').value
