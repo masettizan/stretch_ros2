@@ -26,10 +26,11 @@ from std_srvs.srv import Trigger
 from std_srvs.srv import SetBool
 
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
+from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy, Float64MultiArray
 from std_msgs.msg import Bool, String
 
 from hello_helpers.gripper_conversion import GripperConversion
+from hello_helpers.joint_qpos_conversion import get_Idx
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
@@ -108,6 +109,33 @@ class StretchDriver(Node):
         self.angular_velocity_radps = twist.angular.z
         self.last_twist_time = self.get_clock().now()
         self.robot_mode_rwlock.release_read()
+    
+    def set_robot_streaming_position_callback(self, msg):
+        self.robot_mode_rwlock.acquire_read()
+        # if self.robot_mode != 'position':
+        #     self.get_logger().error('{0} action server must be in streaming position mode to '
+        #                             'receive a joint state on joint_position_cmd.'
+        #                             'Current mode = {1}.'.format(self.node_name, self.robot_mode))
+        #     self.robot_mode_rwlock.release_read()
+        #     return
+        qpos = msg.data
+        self.move_to_position(qpos)
+        self.robot_mode_rwlock.release_read()
+    
+    def move_to_position(self, qpos):
+        try:
+            Idx = get_Idx(self.robot.params['tool'])
+            self.robot.arm.move_to(qpos[Idx.ARM])
+            self.robot.lift.move_to(qpos[Idx.LIFT])
+            self.robot.end_of_arm.move_to('wrist_yaw', qpos[Idx.WRIST_YAW])
+            self.robot.end_of_arm.move_to('wrist_pitch', qpos[Idx.WRIST_PITCH])
+            self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
+            self.robot.head.move_to('head_pan', qpos[Idx.HEAD_PAN])
+            self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
+            if 'stretch_gripper' in self.robot.end_of_arm.joints:
+                self.robot.end_of_arm.move_to('stretch_gripper', qpos[Idx.GRIPPER])
+        except Exception as e:
+            self.get_logger().error('Failed to move to position: {0}'.format(e))
 
     def command_mobile_base_velocity_and_publish_state(self):
         self.robot_mode_rwlock.acquire_read()
