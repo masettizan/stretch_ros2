@@ -125,7 +125,7 @@ class StretchDriver(Node):
     def move_to_position(self, qpos):
         try:
             Idx = get_Idx(self.robot.params['tool'])
-            if len(qpos) != Idx.joints_N:
+            if len(qpos) != Idx.num_joints:
                 self.get_logger().error('Received qpos does not match the number of joints in the robot')
                 return
             self.robot.arm.move_to(qpos[Idx.ARM])
@@ -135,8 +135,15 @@ class StretchDriver(Node):
             self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
             self.robot.head.move_to('head_pan', qpos[Idx.HEAD_PAN])
             self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
+            if abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode != 'position':
+                self.get_logger().error('Cannot move base in both translation and rotation at the same time in position mode')
+            elif abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and self.robot_mode == 'position':
+                self.robot.base.translate_by(qpos[Idx.BASE_TRANSLATE])
+            elif abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode == 'position':
+                self.robot.base.rotate_by(qpos[Idx.BASE_ROTATE])
             if 'stretch_gripper' in self.robot.end_of_arm.joints:
-                self.robot.end_of_arm.move_to('stretch_gripper', qpos[Idx.GRIPPER])
+                pos = self.gripper_conversion.finger_to_robotis(qpos[Idx.GRIPPER])
+                self.robot.end_of_arm.move_to('stretch_gripper', pos)
             print(f"Moved to position qpos: {qpos}")
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))

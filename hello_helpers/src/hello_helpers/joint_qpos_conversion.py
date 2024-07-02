@@ -16,4 +16,7 @@ class SE3_dw3_sg3_Idx:
     WRIST_YAW = 2
     HEAD_PAN = 5
     HEAD_TILT = 6
-    joints_N = 8
+    BASE_TRANSLATE = 7
+    BASE_ROTATE = 8
+
+    num_joints = 9
