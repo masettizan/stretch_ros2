@@ -13,13 +13,14 @@ try:
     default_baudrate = str(lidar_dev.params['baud'])
 except KeyError:
     default_baudrate = '115200'
-configurable_parameters = [{'name': 'serial_port',      'default': str(lidar_dev.params['usb_name']),   'description':"'Specifying usb port to connected lidar'"},
-                           {'name': 'serial_baudrate',  'default': default_baudrate,                    'description':"'Specifying usb port baudrate to connected lidar'"},
-                           {'name': 'frame_id',         'default': 'laser',                             'description':"'Specifying frame_id of lidar'"},
-                           {'name': 'inverted',         'default': 'false',                             'description':"'Specifying whether or not to invert scan data'"},
-                           {'name': 'angle_compensate', 'default': 'true',                              'description':"'Specifying whether or not to enable angle_compensate of scan data'"},
-                           {'name': 'scan_mode',        'default': 'Boost',                             'description':"''"}, # Check if this is supported
-                           ]
+configurable_parameters = [
+    {'name': 'serial_port',      'default': str(lidar_dev.params['usb_name']),   'description':"'Specifying usb port to connected lidar'"},
+    {'name': 'serial_baudrate',  'default': default_baudrate,                    'description':"'Specifying usb port baudrate to connected lidar'"},
+    {'name': 'frame_id',         'default': 'laser',                             'description':"'Specifying frame_id of lidar'"},
+    {'name': 'inverted',         'default': 'false',                             'description':"'Specifying whether or not to invert scan data'"},
+    {'name': 'angle_compensate', 'default': 'true',                              'description':"'Specifying whether or not to enable angle_compensate of scan data'"},
+    {'name': 'scan_mode',        'default': 'Boost',                             'description':"''"}, # Check if this is supported
+]
 
 # lidar supported modes
 # Standard: max_distance: 12.0 m, Point number: 2.0K
