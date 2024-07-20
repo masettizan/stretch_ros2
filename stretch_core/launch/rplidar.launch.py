@@ -7,9 +7,11 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.event_handlers import OnShutdown
 from stretch_body.device import Device
+import os 
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = '/usr/lib/x86_64-linux-gnu/qt5/plugins/platforms/libqxcb.so'
 
-lidar_dev = Device('lidar')
 try:
+    lidar_dev = Device('lidar')
     default_baudrate = str(lidar_dev.params['baud'])
 except KeyError:
     default_baudrate = '115200'
