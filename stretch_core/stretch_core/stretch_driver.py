@@ -4,6 +4,7 @@ import copy
 import yaml
 import numpy as np
 import threading
+import time
 from .rwlock import RWLock
 import stretch_body.robot as rb
 from stretch_body import gamepad_teleop
@@ -31,13 +32,14 @@ from std_msgs.msg import Bool, String, Float64MultiArray
 
 from hello_helpers.gripper_conversion import GripperConversion
 from hello_helpers.joint_qpos_conversion import get_Idx
+from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
 
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
-
+STREAMING_POSITION_DEBUG = False
 
 class StretchDriver(Node):
 
@@ -81,6 +83,7 @@ class StretchDriver(Node):
         
         self.gamepad_teleop = None
         self.received_gamepad_joy_msg = get_default_joy_msg()
+        self.streaming_controller_lt = LoopTimer()
         self.ros_setup()
 
     def set_gamepad_motion_callback(self, joy):
@@ -118,9 +121,16 @@ class StretchDriver(Node):
         #                             'Current mode = {1}.'.format(self.node_name, self.robot_mode))
         #     self.robot_mode_rwlock.release_read()
         #     return
+        if time.time() - self.streaming_controller_lt.loop_current_time>3:
+            self.get_logger().info('Reset Streaming position looptimer after 3s no message received.')
+            self.streaming_controller_lt.reset()
+        self.streaming_controller_lt.start_of_iteration()
         qpos = msg.data
         self.move_to_position(qpos)
         self.robot_mode_rwlock.release_read()
+        self.streaming_controller_lt.end_of_iteration()
+        if STREAMING_POSITION_DEBUG:
+            self.streaming_controller_lt.pretty_print()
     
     def move_to_position(self, qpos):
         try:
