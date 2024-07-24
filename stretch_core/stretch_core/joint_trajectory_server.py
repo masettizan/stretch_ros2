@@ -2,6 +2,7 @@
 
 import importlib
 import time
+import copy
 import pickle
 import numpy as np
 from pathlib import Path
@@ -344,8 +345,9 @@ class JointTrajectoryAction(Node):
         """Accept or reject a client request to cancel an action.
         """
         self.node.robot_mode_rwlock.acquire_read()
-        if self.node.robot_mode in ['position','navigation']:
-            self.node.robot_mode_rwlock.release_read()
+        curr_mode = copy.copy(self.node.robot_mode)
+        self.node.robot_mode_rwlock.release_read()
+        if curr_mode in ['position','navigation']:
             # Stop all joints
             self.node.robot.base.left_wheel.enable_safety()
             self.node.robot.base.right_wheel.enable_safety()
@@ -356,16 +358,12 @@ class JointTrajectoryAction(Node):
             self.node.robot.head.move_by('head_tilt', 0.0)
             for j in self.node.robot.end_of_arm.joints:
                 self.node.robot.end_of_arm.move_by(j, 0.0)
-
             return CancelResponse.ACCEPT
-        elif self.node.robot_mode == 'trajectory':
-            self.node.robot_mode_rwlock.release_read()
+        elif curr_mode == 'trajectory':
             self.node.robot.stop_trajectory()
-
             return CancelResponse.ACCEPT
         else:
             self.node.get_logger().info("{0} joint_traj action: cannot cancel goal in {} mode".format(self.node.node_name, self.node.robot_mode))
-            self.node.robot_mode_rwlock.release_read()
             return CancelResponse.REJECT
 
         return CancelResponse.ACCEPT
