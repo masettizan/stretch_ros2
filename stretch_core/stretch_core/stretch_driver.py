@@ -83,7 +83,7 @@ class StretchDriver(Node):
         
         self.gamepad_teleop = None
         self.received_gamepad_joy_msg = get_default_joy_msg()
-        self.streaming_controller_lt = LoopTimer()
+        self.streaming_controller_lt = LoopTimer(name="Streaming Position", print_debug=STREAMING_POSITION_DEBUG)
         self.ros_setup()
 
     def set_gamepad_motion_callback(self, joy):
@@ -121,16 +121,14 @@ class StretchDriver(Node):
         #                             'Current mode = {1}.'.format(self.node_name, self.robot_mode))
         #     self.robot_mode_rwlock.release_read()
         #     return
-        if time.time() - self.streaming_controller_lt.loop_current_time>3:
-            self.get_logger().info('Reset Streaming position looptimer after 3s no message received.')
+        if time.time() - self.streaming_controller_lt.last_update_time> 5:
+            if STREAMING_POSITION_DEBUG:
+                print('Reset Streaming position looptimer after 5s no message received.')
             self.streaming_controller_lt.reset()
-        self.streaming_controller_lt.start_of_iteration()
         qpos = msg.data
         self.move_to_position(qpos)
         self.robot_mode_rwlock.release_read()
-        self.streaming_controller_lt.end_of_iteration()
-        if STREAMING_POSITION_DEBUG:
-            self.streaming_controller_lt.pretty_print()
+        self.streaming_controller_lt.update()
     
     def move_to_position(self, qpos):
         try:

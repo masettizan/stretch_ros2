@@ -4,6 +4,7 @@ from std_msgs.msg import Float64MultiArray
 from hello_helpers.joint_qpos_conversion import get_Idx
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
+from hello_helpers.gripper_conversion import GripperConversion
 from rclpy.callback_groups import ReentrantCallbackGroup
 import numpy as np
 import time
@@ -33,6 +34,7 @@ class JointPosePublisher(Node):
         self.switch_to_position_mode_service = self.create_client(Trigger, '/switch_to_position_mode',callback_group=self.reentrant_cb)
         while not self.switch_to_position_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_position_mode' service...")
+        self.gripper_conversion = GripperConversion()
     
     def joint_states_callback(self, msg):
         self.joint_state = msg
@@ -69,11 +71,31 @@ class JointPosePublisher(Node):
         msg.data = list(joint_pose)
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.data)
+    
+    def wait_until_at_setpoint(self, goal_qpos):
+        while abs(goal_qpos[:-2] - joint_pose_publisher.get_joint_status()[:-2]).mean() > 0.01:
+            rclpy.spin_once(self)
+            time.sleep(0.01)
 
 if __name__ == '__main__':
     joint_pose_publisher = JointPosePublisher()
+    rclpy.spin_once(joint_pose_publisher)
+
     Idx = get_Idx('eoa_wrist_dw3_tool_sg3')
     joint_pose_publisher.switch_to_position_mode()
+
+    qpos = np.zeros(Idx.num_joints)
+    qpos[Idx.LIFT] = 0.6
+    qpos[Idx.ARM] = 0
+    qpos[Idx.WRIST_PITCH] = 0
+    qpos[Idx.WRIST_ROLL] = 0
+    qpos[Idx.WRIST_YAW] = 0
+    qpos[Idx.GRIPPER] = joint_pose_publisher.gripper_conversion.robotis_to_finger(0)
+    qpos[Idx.BASE_TRANSLATE] = 0
+    qpos[Idx.BASE_ROTATE] = 0
+    joint_pose_publisher.publish_joint_pose(qpos)
+    joint_pose_publisher.wait_until_at_setpoint(qpos)
+    
     i = 0
     while i<100:
         i = 1 + i
@@ -84,7 +106,7 @@ if __name__ == '__main__':
         qpos[Idx.WRIST_PITCH] = qpos[Idx.WRIST_PITCH] + 0.1
         qpos[Idx.WRIST_ROLL] = qpos[Idx.WRIST_ROLL] + 0.1
         qpos[Idx.WRIST_YAW] = qpos[Idx.WRIST_YAW] + 0.1
-        qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] + 10
+        qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] + 0.1
         qpos[Idx.BASE_TRANSLATE] = 0.01
         qpos[Idx.BASE_ROTATE] = 0.0
         joint_pose_publisher.publish_joint_pose(qpos)
@@ -99,7 +121,7 @@ if __name__ == '__main__':
         qpos[Idx.WRIST_PITCH] = qpos[Idx.WRIST_PITCH] - 0.1
         qpos[Idx.WRIST_ROLL] = qpos[Idx.WRIST_ROLL] - 0.1
         qpos[Idx.WRIST_YAW] = qpos[Idx.WRIST_YAW] - 0.1
-        qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] - -10
+        qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] - 0.1
         qpos[Idx.BASE_ROTATE] = -0.05
         qpos[Idx.BASE_TRANSLATE] = 0.0
         joint_pose_publisher.publish_joint_pose(qpos)
