@@ -34,7 +34,6 @@ class JointTrajectoryAction:
         self.node = node
         self._goal_handle = None
         self._goal_lock = threading.Lock()
-        self.action_server_rate = self.node.create_rate(action_server_rate_hz)
         self.server = ActionServer(self.node, FollowJointTrajectory, '/stretch_controller/follow_joint_trajectory',
                                    execute_callback=self.execute_cb,
                                    cancel_callback=self.cancel_cb,
@@ -309,9 +308,9 @@ class JointTrajectoryAction:
                 self.feedback_callback(goal_handle, start_time=ts)
                 # self.action_server_rate.sleep()
 
-            # TODO: We should change time.sleep to self.action_server_rate.sleep(),
-            # so control is handed back to the executor to handle other callbacks
-            # while sleeping. This requires enough threads in the executor to process
+            # TODO: We should change time.sleep to a rate.sleep(), so control
+            # is handed back to the executor to handle other callbacks while
+            # sleeping. This requires enough threads in the executor to process
             # all callbacks we expect to fire in parallel.
             time.sleep(0.1)
             self.node.robot_mode_rwlock.release_read()
