@@ -991,7 +991,7 @@ class StretchDriver(Node):
 def main():
     try:
         rclpy.init()
-        executor = MultiThreadedExecutor(num_threads=2)
+        executor = MultiThreadedExecutor(num_threads=5)
         node = StretchDriver()
         node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
         executor.add_node(node)
