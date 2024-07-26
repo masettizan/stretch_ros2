@@ -112,6 +112,9 @@ class JointTrajectoryAction:
         with self.node.robot_stop_lock:
             # Escape stopped mode to execute trajectory
             self.node.stop_the_robot = False
+        # TODO: To avoid bugs (e.g., where we return and forget to release the lock),
+        # we should write a unified cleanup function that releases the lock and ensure
+        # all return logic first calls that function.
         self.node.robot_mode_rwlock.acquire_read()
         if self.node.robot_mode not in ['position', 'trajectory', 'navigation']:
             self.node.robot_mode_rwlock.release_read()
@@ -190,6 +193,7 @@ class JointTrajectoryAction:
                     if not goal_handle.is_active:
                         self.node.get_logger().info('Goal aborted')
                         self.node.robot.stop_trajectory()
+                        self.node.robot_mode_rwlock.release_read()
                         return FollowJointTrajectory.Result()
                     
                     if goal_handle.is_cancel_requested:
