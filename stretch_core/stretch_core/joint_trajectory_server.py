@@ -96,6 +96,10 @@ class JointTrajectoryAction:
                 # self._goal_handle.abort() \TODO(@hello-atharva): This is causing state transition issues.
             self._goal_handle = goal_handle
 
+        # Increment goal ID
+        self.latest_goal_id += 1
+
+        # Launch an asynch coroutine to execute the goal
         goal_handle.execute()
     
     def execute_cb(self, goal_handle):
@@ -106,8 +110,7 @@ class JointTrajectoryAction:
             pickle.dump(goal, s)
 
         # Register this goal's ID
-        goal_id = self.latest_goal_id + 1
-        self.latest_goal_id += 1
+        goal_id = self.latest_goal_id
         
         with self.node.robot_stop_lock:
             # Escape stopped mode to execute trajectory
