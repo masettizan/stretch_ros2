@@ -17,7 +17,6 @@ import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
-from rclpy.node import Node
 
 from control_msgs.action import FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -29,10 +28,9 @@ from .command_groups import HeadPanCommandGroup, HeadTiltCommandGroup, \
 
 import hello_helpers.hello_misc as hm
 
-class JointTrajectoryAction(Node):
+class JointTrajectoryAction:
 
     def __init__(self, node, action_server_rate_hz):
-        super().__init__('joint_trajectory_action')
         self.node = node
         self._goal_handle = None
         self._goal_lock = threading.Lock()
@@ -74,27 +72,27 @@ class JointTrajectoryAction(Node):
         self.node.robot._update_trajectory_non_dynamixel = lambda : None
 
         self.timeout = 0.2 # seconds
-        self.last_goal_time = self.get_clock().now().to_msg()
+        self.last_goal_time = self.node.get_clock().now().to_msg()
 
         self.latest_goal_id = 0
 
     def goal_cb(self, goal_request):
         """Accept or reject a client request to begin an action."""
-        self.get_logger().info('Received goal request')
-        new_goal_time = self.get_clock().now().to_msg()
+        self.node.get_logger().info('Received goal request')
+        new_goal_time = self.node.get_clock().now().to_msg()
         time_duration = (new_goal_time.sec + new_goal_time.nanosec*pow(10,-9)) - (self.last_goal_time.sec + self.last_goal_time.nanosec*pow(10,-9))
         # If incoming commands received above 5 Hz, they are rejected
         if self._goal_handle is not None and self._goal_handle.is_active and (time_duration < self.timeout):
             return GoalResponse.REJECT # Reject goal if another goal is currently active
 
-        self.last_goal_time = self.get_clock().now().to_msg()
+        self.last_goal_time = self.node.get_clock().now().to_msg()
         return GoalResponse.ACCEPT
 
     def handle_accepted_cb(self, goal_handle):
         with self._goal_lock:
             # This server only allows one goal at a time
             if self._goal_handle is not None and self._goal_handle.is_active:
-                self.get_logger().info('Aborting previous goal')
+                self.node.get_logger().info('Aborting previous goal')
                 # Abort the existing goal
                 # self._goal_handle.abort() \TODO(@hello-atharva): This is causing state transition issues.
             self._goal_handle = goal_handle
@@ -155,7 +153,7 @@ class JointTrajectoryAction(Node):
             # an error is detected or success is achieved.
             for pointi, point in enumerate(goal.trajectory.points):
                 if not goal_handle.is_active:
-                        self.get_logger().info('Goal aborted')
+                        self.node.get_logger().info('Goal aborted')
                         self.node.robot.stop_trajectory()
                         return FollowJointTrajectory.Result()
 
@@ -191,14 +189,14 @@ class JointTrajectoryAction(Node):
                     # If goal is flagged as no longer active (ie. another goal was accepted),
                     # then stop executing
                     if not goal_handle.is_active:
-                        self.get_logger().info('Goal aborted')
+                        self.node.get_logger().info('Goal aborted')
                         self.node.robot.stop_trajectory()
                         return FollowJointTrajectory.Result()
                     
                     if goal_handle.is_cancel_requested:
                         goal_handle.canceled()
                         self.node.robot.stop_trajectory()
-                        self.get_logger().info('Goal canceled')
+                        self.node.get_logger().info('Goal canceled')
                         self.node.robot_mode_rwlock.release_read()
                         return FollowJointTrajectory.Result()
                     
@@ -240,7 +238,7 @@ class JointTrajectoryAction(Node):
             # If goal is flagged as no longer active (ie. another goal was accepted),
             # then stop executing
             if not goal_handle.is_active:
-                self.get_logger().info('Goal aborted')
+                self.node.get_logger().info('Goal aborted')
                 self.node.robot.stop_trajectory()
                 return FollowJointTrajectory.Result()
             return self.success_callback(goal_handle, "Achieved all target points.")
@@ -311,6 +309,10 @@ class JointTrajectoryAction(Node):
                 self.feedback_callback(goal_handle, start_time=ts)
                 # self.action_server_rate.sleep()
 
+            # TODO: We should change time.sleep to self.action_server_rate.sleep(),
+            # so control is handed back to the executor to handle other callbacks
+            # while sleeping. This requires enough threads in the executor to process
+            # all callbacks we expect to fire in parallel.
             time.sleep(0.1)
             self.node.robot_mode_rwlock.release_read()
             self._update_trajectory_dynamixel()
@@ -425,7 +427,7 @@ class JointTrajectoryAction(Node):
             self.node.robot.end_of_arm.update_trajectory()
             self.node.robot.head.update_trajectory()
         except SerialException:
-            self.get_logger().warn(f'{self.node.node_name} joint_traj action: Serial Exception on updating dynamixel waypoint trajectories')
+            self.node.get_logger().warn(f'{self.node.node_name} joint_traj action: Serial Exception on updating dynamixel waypoint trajectories')
 
     def _update_trajectory_non_dynamixel(self):
         self.node.robot.arm.motor.pull_status()

@@ -995,7 +995,6 @@ def main():
         node = StretchDriver()
         node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
         executor.add_node(node)
-        executor.add_node(node.joint_trajectory_action)
         try:
             executor.spin()
         finally:
