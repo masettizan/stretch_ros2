@@ -16,16 +16,17 @@ def test_position_mode_cancellation():
     node.move_to_configuration({"joint_lift": 1.1})
 
     # Move the lift part way down
+    node.get_logger().info("Moving lift down...")
     node.move_to_configuration({"joint_lift": 0.5}, blocking=False)
 
-    # Sleep for 1s, then cancel
-    node.get_logger().info("Sleeping for 1s")
-    time.sleep(1)
+    # Sleep for 0.5s, then cancel
+    time.sleep(0.5)
     node.get_logger().info("Cancelling the goal")
     node.cancel_goal()
 
     # Lift position should not be near 0.5
-    assert node.q_curr["joint_lift"] > 0.8
+    time.sleep(2)
+    assert node.q_curr["joint_lift"] > 1.0
 
     # Clean up
     node.destroy_node()
