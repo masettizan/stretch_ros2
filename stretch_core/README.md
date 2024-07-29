@@ -207,6 +207,12 @@ $ cd ~/ament_ws
 $ colcon test --packages-select stretch_core
 ```
 
+You can run individual tests using the following command. Optionally, you can have the test runner (pytest) print to the console.
+
+```bash
+$ colcon test --packages-select stretch_core --pytest-args -k test_core_topics_published --event-handlers console_direct+
+```
+
 Here are description of each test suite:
 
  - **test_services.py**: tests the ROS2 services within the stretch_driver node
