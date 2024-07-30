@@ -5,7 +5,6 @@ import yaml
 import numpy as np
 import threading
 from .rwlock import RWLock
-from typing import List
 import stretch_body.robot as rb
 from stretch_body import gamepad_teleop
 import stretch_body
@@ -702,7 +701,7 @@ class StretchDriver(Node):
         response.message = f'is self collision avoidance enabled: {enable_self_collision_avoidance}'
         return response
 
-    def parameter_callback(self, parameters: List[Parameter]) -> SetParametersResult:
+    def parameter_callback(self, parameters: list[Parameter]) -> SetParametersResult:
         """
         Update the parameters that allow for dynamic updates.
         """
