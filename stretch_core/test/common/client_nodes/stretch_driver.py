@@ -1,5 +1,6 @@
 import sys
 import time
+import typing
 import numbers
 import threading
 
@@ -11,6 +12,7 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 from sensor_msgs.msg import JointState
 from control_msgs.action import FollowJointTrajectory
 from action_msgs.srv import CancelGoal
@@ -39,6 +41,14 @@ class Client(Node):
         # Setup FJT cancel service
         self._fjt_cancel_service = self.create_client(
             CancelGoal, "/stretch_controller/follow_joint_trajectory/_action/cancel_goal"
+        )
+
+        # Setup service callers
+        self._switch_to_nav_mode_service = self.create_client(
+            Trigger, "/switch_to_navigation_mode"
+        )
+        self._switch_to_pos_mode_service = self.create_client(
+            Trigger, "/switch_to_position_mode"
         )
 
         # Setup subscriptions
@@ -85,6 +95,20 @@ class Client(Node):
             q_full[joint] = (pos, vel, eff)
         self.q_curr = q_curr
         self.q_full = q_full
+
+    def change_mode(self, mode: typing.Literal["position", "navigation"], blocking=True):
+        if mode == "position":
+            future = self._switch_to_pos_mode_service.call_async(Trigger.Request())
+            if blocking:
+                while not future.done():
+                    time.sleep(0.1)
+            return future
+        if mode == "navigation":
+            future = self._switch_to_nav_mode_service.call_async(Trigger.Request())
+            if blocking:
+                while not future.done():
+                    time.sleep(0.1)
+            return future
 
     def move_to_configuration(self, q, blocking=True, custom_contact_thresholds=False, custom_full_goal=False):
         if self.dryrun:
