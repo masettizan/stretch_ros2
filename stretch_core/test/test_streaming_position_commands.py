@@ -1,108 +1,19 @@
+import time
+import pytest
 import rclpy
-from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
-from hello_helpers.joint_qpos_conversion import get_Idx
-from sensor_msgs.msg import JointState
-from std_srvs.srv import Trigger
-from hello_helpers.gripper_conversion import GripperConversion
-from rclpy.callback_groups import ReentrantCallbackGroup
+
+from common.launch_descriptions import stretch_driver_ld
+from common.client_nodes.joint_pose_streaming import JointPosePublisher
 import numpy as np
 import time
 
-ROS_ARM_JOINTS = ["joint_arm_l0", "joint_arm_l1", "joint_arm_l2", "joint_arm_l3"]
-ROS_LIFT_JOINT = "joint_lift"
-ROS_GRIPPER_FINGER = "joint_gripper_finger_left"
-# ROS_GRIPPER_FINGER2 = "joint_gripper_finger_right"
-ROS_HEAD_PAN = "joint_head_pan"
-ROS_HEAD_TILT = "joint_head_tilt"
-ROS_WRIST_YAW = "joint_wrist_yaw"
-ROS_WRIST_PITCH = "joint_wrist_pitch"
-ROS_WRIST_ROLL = "joint_wrist_roll"
-
-class JointPosePublisher(Node):
-    def __init__(self):
-        rclpy.init()
-        super().__init__('float_array_publisher')
-        self.reentrant_cb = ReentrantCallbackGroup()
-        self.publisher_ = self.create_publisher(Float64MultiArray, 'joint_pose_cmd', 10,callback_group=self.reentrant_cb)
-        # subscribe to joint states
-        self.joint_state = JointState()
-        self.joint_states_subscriber = self.create_subscription(JointState, 
-                                                                '/stretch/joint_states', 
-                                                                self.joint_states_callback, 10,callback_group=self.reentrant_cb)
-        self.Idx = get_Idx('eoa_wrist_dw3_tool_sg3')
-        self.switch_to_position_mode_service = self.create_client(Trigger, '/switch_to_position_mode',callback_group=self.reentrant_cb)
-
-        self.switch_to_navigation_mode_service = self.create_client(Trigger, '/switch_to_navigation_mode',callback_group=self.reentrant_cb)
-        
-        self.activate_streaming_position_service = self.create_client(Trigger, '/activate_streaming_position', callback_group=self.reentrant_cb)
-        self.deactivate_streaming_position_service = self.create_client(Trigger, '/deactivate_streaming_position', callback_group=self.reentrant_cb)
-
-        while not self.switch_to_position_mode_service.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info("Waiting on '/switch_to_position_mode' service...")
-        self.gripper_conversion = GripperConversion()
-    
-    def joint_states_callback(self, msg):
-        self.joint_state = msg
-
-    def switch_to_position_mode(self):
-        trigger_request = Trigger.Request()
-        trigger_result = self.switch_to_position_mode_service.call_async(trigger_request)
-        return
-
-    def activate_streaming_position(self):
-        trigger_request = Trigger.Request()
-        trigger_result = self.activate_streaming_position_service.call_async(trigger_request)
-        time.sleep(1)
-
-    def deactivate_streaming_position(self):
-        trigger_request = Trigger.Request()
-        trigger_result = self.deactivate_streaming_position_service.call_async(trigger_request)
-        return
-
-
-    def switch_to_navigation_mode(self):
-        trigger_request = Trigger.Request()
-        trigger_result = self.switch_to_navigation_mode_service.call_async(trigger_request)
-        return
-    
-    def get_joint_status(self):
-        j_status =  self.parse_joint_state(self.joint_state)
-        pose = np.zeros(self.Idx.num_joints)
-        pose[self.Idx.LIFT] = j_status[ROS_LIFT_JOINT]
-        pose[self.Idx.ARM] = j_status[ROS_ARM_JOINTS[0]]+j_status[ROS_ARM_JOINTS[1]]+j_status[ROS_ARM_JOINTS[2]]+j_status[ROS_ARM_JOINTS[3]]
-        pose[self.Idx.GRIPPER] = j_status[ROS_GRIPPER_FINGER]
-        pose[self.Idx.WRIST_ROLL] = j_status[ROS_WRIST_ROLL]
-        pose[self.Idx.WRIST_PITCH] = j_status[ROS_WRIST_PITCH]
-        pose[self.Idx.WRIST_YAW] = j_status[ROS_WRIST_YAW]
-        pose[self.Idx.HEAD_PAN] = j_status[ROS_HEAD_PAN]
-        pose[self.Idx.HEAD_TILT] = j_status[ROS_HEAD_TILT]
-        return pose
-        
-    def parse_joint_state(self, joint_state_msg):
-        joint_status = {}
-        for name, position in zip(joint_state_msg.name, joint_state_msg.position):
-            joint_status[name] = position
-        return joint_status
-
-    def publish_joint_pose(self, joint_pose):
-        msg = Float64MultiArray()
-        msg.data = list(joint_pose)
-        self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg.data)
-    
-    def wait_until_at_setpoint(self, goal_qpos):
-        while abs(goal_qpos[:-2] - joint_pose_publisher.get_joint_status()[:-2]).mean() > 0.01:
-            rclpy.spin_once(self)
-            time.sleep(0.01)
-
-if __name__ == '__main__':
+@pytest.mark.launch(fixture=stretch_driver_ld)
+def test_streaming_position_commands():
     joint_pose_publisher = JointPosePublisher()
     rclpy.spin_once(joint_pose_publisher)
 
-    Idx = get_Idx('eoa_wrist_dw3_tool_sg3')
+    Idx = joint_pose_publisher.Idx
     
-    # joint_pose_publisher.switch_to_navigation_mode()
     joint_pose_publisher.activate_streaming_position()
 
     qpos = np.zeros(Idx.num_joints)

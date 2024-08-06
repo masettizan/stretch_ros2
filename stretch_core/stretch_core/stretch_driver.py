@@ -31,7 +31,7 @@ from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
 from std_msgs.msg import Bool, String, Float64MultiArray
 
 from hello_helpers.gripper_conversion import GripperConversion
-from hello_helpers.joint_qpos_conversion import get_Idx
+from hello_helpers.joint_qpos_conversion import get_Idx, UnsupportedToolError
 from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
@@ -141,7 +141,10 @@ class StretchDriver(Node):
     
     def move_to_position(self, qpos):
         try:
-            Idx = get_Idx(self.robot.params['tool'])
+            try:
+             Idx = get_Idx(self.robot.params['tool'])
+            except UnsupportedToolError:
+                self.get_logger().error('Unsupported tool for streaming position control.')
             if len(qpos) != Idx.num_joints:
                 self.get_logger().error('Received qpos does not match the number of joints in the robot')
                 return
