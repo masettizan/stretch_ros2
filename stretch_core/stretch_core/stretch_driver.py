@@ -4,7 +4,6 @@ import copy
 import yaml
 import numpy as np
 import threading
-import time
 from .rwlock import RWLock
 import stretch_body.robot as rb
 from stretch_body import gamepad_teleop
@@ -130,7 +129,7 @@ class StretchDriver(Node):
             return
 
         
-        if time.time() - self.streaming_controller_lt.last_update_time> 5:
+        if self.get_clock().now() - self.streaming_controller_lt.last_update_time> 5:
             if STREAMING_POSITION_DEBUG:
                 print('Reset Streaming position looptimer after 5s no message received.')
             self.streaming_controller_lt.reset()
