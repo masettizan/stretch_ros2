@@ -150,8 +150,10 @@ class StretchDriver(Node):
             self.robot.arm.move_to(qpos[Idx.ARM])
             self.robot.lift.move_to(qpos[Idx.LIFT])
             self.robot.end_of_arm.move_to('wrist_yaw', qpos[Idx.WRIST_YAW])
-            self.robot.end_of_arm.move_to('wrist_pitch', qpos[Idx.WRIST_PITCH])
-            self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
+            if 'wrist_pitch' in self.robot.end_of_arm.joints:
+                self.robot.end_of_arm.move_to('wrist_pitch', qpos[Idx.WRIST_PITCH])
+            if 'wrist_roll' in self.robot.end_of_arm.joints:
+                self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
             self.robot.head.move_to('head_pan', qpos[Idx.HEAD_PAN])
             self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
             if abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode != 'position':
