@@ -84,6 +84,7 @@ class StretchDriver(Node):
         self.gamepad_teleop = None
         self.received_gamepad_joy_msg = get_default_joy_msg()
         self.streaming_controller_lt = LoopTimer(name="Streaming Position", print_debug=STREAMING_POSITION_DEBUG)
+        self.streaming_position_activated = False
         self.ros_setup()
 
     def set_gamepad_motion_callback(self, joy):
@@ -115,12 +116,20 @@ class StretchDriver(Node):
     
     def set_robot_streaming_position_callback(self, msg):
         self.robot_mode_rwlock.acquire_read()
-        # if self.robot_mode != 'position' or self.robot_mode != 'navigation':
-        #     self.get_logger().error('{0} action server must be in position or navigation mode to '
-        #                             'receive a joint state on joint_position_cmd.'
-        #                             'Current mode = {1}.'.format(self.node_name, self.robot_mode))
-        #     self.robot_mode_rwlock.release_read()
-        #     return
+        if not self.streaming_position_activated:
+            self.get_logger().error('Streaming position is not activated.'
+                                    ' Please activate streaming position to receive command to joint_position_cmd.')
+            self.robot_mode_rwlock.release_read()
+            return
+        
+        if not self.robot_mode in ['position', 'navigation']:
+            self.get_logger().error('{0} must be in position or navigation mode with streaming_position activated ' 
+                                    'enabled to receive command to joint_position_cmd. '
+                                    'Current mode = {1}.'.format(self.node_name, self.robot_mode))
+            self.robot_mode_rwlock.release_read()
+            return
+
+        
         if time.time() - self.streaming_controller_lt.last_update_time> 5:
             if STREAMING_POSITION_DEBUG:
                 print('Reset Streaming position looptimer after 5s no message received.')
@@ -414,6 +423,11 @@ class StretchDriver(Node):
         tool_msg.data = self.robot.end_of_arm.name
         self.tool_pub.publish(tool_msg)
 
+        # publish streaming position status
+        streaming_position_status = Bool()
+        streaming_position_status.data = self.streaming_position_activated
+        self.streaming_position_mode_pub.publish(streaming_position_status)
+
         # publish joint state for the arm
         joint_state = JointState()
         joint_state.header.stamp = current_time
@@ -638,7 +652,16 @@ class StretchDriver(Node):
         self.change_mode('gamepad', code_to_run)
         return True, 'Now in gamepad mode.'
     
+    def activate_streaming_position(self, request):
+        self.streaming_position_activated = True
+        self.get_logger().info('Activated streaming position.')
+        return True, 'Activated streaming position.'
 
+    def deactivate_streaming_position(self, request):
+        self.streaming_position_activated = False
+        self.get_logger().info('Deactivated streaming position.')
+        return True, 'Deactivated streaming position.'
+    
     # SERVICE CALLBACKS ##############
 
     def stop_the_robot_callback(self, request, response):
@@ -706,6 +729,18 @@ class StretchDriver(Node):
 
         response.success = True
         response.message = f'is_runstopped: {request.data}'
+        return response
+    
+    def activate_streaming_position_service_callback(self, request, response):
+        success, message = self.activate_streaming_position(request)
+        response.success = success
+        response.message = message
+        return response
+
+    def deactivate_streaming_position_service_callback(self, request, response):
+        success, message = self.deactivate_streaming_position(request)
+        response.success = success
+        response.message = message
         return response
 
     def get_joint_states_callback(self, request, response):
@@ -924,6 +959,7 @@ class StretchDriver(Node):
         self.homed_pub = self.create_publisher(Bool, 'is_homed', 1)
         self.mode_pub = self.create_publisher(String, 'mode', 1)
         self.tool_pub = self.create_publisher(String, 'tool', 1)
+        self.streaming_position_mode_pub = self.create_publisher(Bool, 'is_streaming_position', 1)
 
         self.imu_mobile_base_pub = self.create_publisher(Imu, 'imu_mobile_base', 1)
         self.magnetometer_mobile_base_pub = self.create_publisher(MagneticField, 'magnetometer_mobile_base', 1)
@@ -983,6 +1019,14 @@ class StretchDriver(Node):
         self.switch_to_gamepad_mode_service = self.create_service(Trigger,
                                                                     '/switch_to_gamepad_mode',
                                                                     self.gamepad_mode_service_callback)
+    
+        self.activate_streaming_position_service = self.create_service(Trigger,
+                                                                '/activate_streaming_position',
+                                                                self.activate_streaming_position_service_callback)
+
+        self.deactivate_streaming_position_service = self.create_service(Trigger,
+                                                                '/deactivate_streaming_position',
+                                                                self.deactivate_streaming_position_service_callback)
 
         self.stop_the_robot_service = self.create_service(Trigger,
                                                           '/stop_the_robot',

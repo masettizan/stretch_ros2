@@ -32,6 +32,12 @@ class JointPosePublisher(Node):
                                                                 self.joint_states_callback, 10,callback_group=self.reentrant_cb)
         self.Idx = get_Idx('eoa_wrist_dw3_tool_sg3')
         self.switch_to_position_mode_service = self.create_client(Trigger, '/switch_to_position_mode',callback_group=self.reentrant_cb)
+
+        self.switch_to_navigation_mode_service = self.create_client(Trigger, '/switch_to_navigation_mode',callback_group=self.reentrant_cb)
+        
+        self.activate_streaming_position_service = self.create_client(Trigger, '/activate_streaming_position', callback_group=self.reentrant_cb)
+        self.deactivate_streaming_position_service = self.create_client(Trigger, '/deactivate_streaming_position', callback_group=self.reentrant_cb)
+
         while not self.switch_to_position_mode_service.wait_for_service(timeout_sec=2.0):
             self.get_logger().info("Waiting on '/switch_to_position_mode' service...")
         self.gripper_conversion = GripperConversion()
@@ -43,9 +49,22 @@ class JointPosePublisher(Node):
         trigger_request = Trigger.Request()
         trigger_result = self.switch_to_position_mode_service.call_async(trigger_request)
         return
-        # while not trigger_result.done():
-        #     time.sleep(0.2)
-        # return trigger_result.done()
+
+    def activate_streaming_position(self):
+        trigger_request = Trigger.Request()
+        trigger_result = self.activate_streaming_position_service.call_async(trigger_request)
+        time.sleep(1)
+
+    def deactivate_streaming_position(self):
+        trigger_request = Trigger.Request()
+        trigger_result = self.deactivate_streaming_position_service.call_async(trigger_request)
+        return
+
+
+    def switch_to_navigation_mode(self):
+        trigger_request = Trigger.Request()
+        trigger_result = self.switch_to_navigation_mode_service.call_async(trigger_request)
+        return
     
     def get_joint_status(self):
         j_status =  self.parse_joint_state(self.joint_state)
@@ -82,7 +101,9 @@ if __name__ == '__main__':
     rclpy.spin_once(joint_pose_publisher)
 
     Idx = get_Idx('eoa_wrist_dw3_tool_sg3')
-    joint_pose_publisher.switch_to_position_mode()
+    
+    # joint_pose_publisher.switch_to_navigation_mode()
+    joint_pose_publisher.activate_streaming_position()
 
     qpos = np.zeros(Idx.num_joints)
     qpos[Idx.LIFT] = 0.6
@@ -93,6 +114,8 @@ if __name__ == '__main__':
     qpos[Idx.GRIPPER] = joint_pose_publisher.gripper_conversion.robotis_to_finger(0)
     qpos[Idx.BASE_TRANSLATE] = 0
     qpos[Idx.BASE_ROTATE] = 0
+    qpos[Idx.HEAD_PAN] = 0
+    qpos[Idx.HEAD_TILT] = 0
     joint_pose_publisher.publish_joint_pose(qpos)
     joint_pose_publisher.wait_until_at_setpoint(qpos)
     
@@ -106,6 +129,8 @@ if __name__ == '__main__':
         qpos[Idx.WRIST_PITCH] = qpos[Idx.WRIST_PITCH] + 0.1
         qpos[Idx.WRIST_ROLL] = qpos[Idx.WRIST_ROLL] + 0.1
         qpos[Idx.WRIST_YAW] = qpos[Idx.WRIST_YAW] + 0.1
+        qpos[Idx.HEAD_PAN] = qpos[Idx.HEAD_PAN] + 0.1
+        qpos[Idx.HEAD_TILT] = qpos[Idx.HEAD_TILT] + 0.1
         qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] + 0.1
         qpos[Idx.BASE_TRANSLATE] = 0.01
         qpos[Idx.BASE_ROTATE] = 0.0
@@ -121,6 +146,8 @@ if __name__ == '__main__':
         qpos[Idx.WRIST_PITCH] = qpos[Idx.WRIST_PITCH] - 0.1
         qpos[Idx.WRIST_ROLL] = qpos[Idx.WRIST_ROLL] - 0.1
         qpos[Idx.WRIST_YAW] = qpos[Idx.WRIST_YAW] - 0.1
+        qpos[Idx.HEAD_PAN] = qpos[Idx.HEAD_PAN] - 0.1
+        qpos[Idx.HEAD_TILT] = qpos[Idx.HEAD_TILT] - 0.1
         qpos[Idx.GRIPPER] = qpos[Idx.GRIPPER] - 0.1
         qpos[Idx.BASE_ROTATE] = -0.05
         qpos[Idx.BASE_TRANSLATE] = 0.0
