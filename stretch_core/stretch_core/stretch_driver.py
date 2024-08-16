@@ -40,7 +40,7 @@ from .stretch_diagnostics import StretchDiagnostics
 
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
-STREAMING_POSITION_DEBUG = True
+STREAMING_POSITION_DEBUG = False
 
 class StretchDriver(Node):
 
