@@ -129,7 +129,7 @@ class StretchDriver(Node):
             return
 
         
-        if (self.get_clock().now() - self.streaming_controller_lt.last_update_time).to_sec() > 5.0:
+        if (self.get_clock().now().nanoseconds * 1e-9) - self.streaming_controller_lt.last_update_time > 5.0:
             if STREAMING_POSITION_DEBUG:
                 print('Reset Streaming position looptimer after 5s no message received.')
             self.streaming_controller_lt.reset()
