@@ -119,7 +119,7 @@ class JointTrajectoryAction(Node):
             self.node.robot_mode_rwlock.release_read()
             return self.error_callback(goal_handle, FollowJointTrajectory.Result.INVALID_GOAL, "Cannot execute goals while in mode={0}".format(self.node.robot_mode))
         if self.node.streaming_position_activated:
-            return self.error_callback(goal_handle, FollowJointTrajectory.Result.INVALID_GOAL, "Cannot execute goals Streaming Position Controller is activated.".format(self.node.robot_mode))
+            return self.error_callback(goal_handle, FollowJointTrajectory.Result.INVALID_GOAL, "Cannot execute goals while Streaming Position Controller is activated.".format(self.node.robot_mode))
         if self.node.robot_mode in ['position','navigation']:
             # For now, ignore goal time and configuration tolerances.
             commanded_joint_names = goal.trajectory.joint_names
