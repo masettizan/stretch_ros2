@@ -32,9 +32,11 @@ default: stretch_core/config/controller_calibration_head.yaml
 `/magnetometer_mobile_base`: Publishes magnetometer data fromt he Pimu through a message of type sensor_msgs.msg.MagneticField
 `/imu_wrist`: Publishes IMU data from the Wacc through a message of type sensor_msgs.msg.Imu
 `/joint_states`: Publishes joint positions through a message of type sensor_msgs.msg.JointState
+`/is_streaming_position`: Publish whether streamig position mode is On
 
 #### Subscribed Topics
 `/cmd_vel`: Translational and rotational velocities through a message of type geometry_msgs.msg.Twist
+`/joint_pose_cmd`: Joint pose vector to execute with Streaming position controller turned On.
 
 #### Exposed Services
 `/switch_to_position_mode`: change mode to position mode
@@ -43,6 +45,8 @@ default: stretch_core/config/controller_calibration_head.yaml
 `/stop_the_robot`: stop the robot
 `/home_the_robot`: home the robot
 `/runstop`: switches the robot to standby mode where it will ignore new commands
+`/activate_streaming_position`: activates the streaming position mode
+`/deactivate_streaming_position`: deactivates the streaming position mode
 
 #### Exposed Action Servers
 `/stretch_controller/follow_joint_trajectory`: action server to control the robot through joint trajectories

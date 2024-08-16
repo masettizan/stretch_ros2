@@ -38,7 +38,7 @@ from .stretch_diagnostics import StretchDiagnostics
 
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
-STREAMING_POSITION_DEBUG = False
+STREAMING_POSITION_DEBUG = True
 
 class StretchDriver(Node):
 
@@ -166,7 +166,7 @@ class StretchDriver(Node):
             if 'stretch_gripper' in self.robot.end_of_arm.joints:
                 pos = self.gripper_conversion.finger_to_robotis(qpos[Idx.GRIPPER])
                 self.robot.end_of_arm.move_to('stretch_gripper', pos)
-            print(f"Moved to position qpos: {qpos}")
+            self.get_logger().info(f"Moved to position qpos: {qpos}")
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))
 
