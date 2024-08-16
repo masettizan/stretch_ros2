@@ -29,16 +29,18 @@ from std_srvs.srv import SetBool
 from nav_msgs.msg import Odometry
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParametersResult
 from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, String, Float64MultiArray
 
 from hello_helpers.gripper_conversion import GripperConversion
+from hello_helpers.joint_qpos_conversion import get_Idx, UnsupportedToolError
+from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
 
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
-
+STREAMING_POSITION_DEBUG = False
 
 class StretchDriver(Node):
 
@@ -79,6 +81,9 @@ class StretchDriver(Node):
         
         self.gamepad_teleop = None
         self.received_gamepad_joy_msg = get_default_joy_msg()
+        if STREAMING_POSITION_DEBUG:
+            self.streaming_controller_lt = LoopTimer(name="Streaming Position", print_debug=STREAMING_POSITION_DEBUG)
+        self.streaming_position_activated = False
         self.ros_setup()
 
     def set_gamepad_motion_callback(self, joy):
@@ -107,6 +112,62 @@ class StretchDriver(Node):
         self.angular_velocity_radps = twist.angular.z
         self.last_twist_time = self.get_clock().now()
         self.robot_mode_rwlock.release_read()
+    
+    def set_robot_streaming_position_callback(self, msg):
+        self.robot_mode_rwlock.acquire_read()
+        if not self.streaming_position_activated:
+            self.get_logger().error('Streaming position is not activated.'
+                                    ' Please activate streaming position to receive command to joint_position_cmd.')
+            self.robot_mode_rwlock.release_read()
+            return
+        
+        if not self.robot_mode in ['position', 'navigation']:
+            self.get_logger().error('{0} must be in position or navigation mode with streaming_position activated ' 
+                                    'enabled to receive command to joint_position_cmd. '
+                                    'Current mode = {1}.'.format(self.node_name, self.robot_mode))
+            self.robot_mode_rwlock.release_read()
+            return
+
+        if STREAMING_POSITION_DEBUG:
+            if (self.get_clock().now().nanoseconds * 1e-9) - self.streaming_controller_lt.last_update_time > 5.0:
+                print('Reset Streaming position looptimer after 5s no message received.')
+                self.streaming_controller_lt.reset()
+        qpos = msg.data
+        self.move_to_position(qpos)
+        self.robot_mode_rwlock.release_read()
+        if STREAMING_POSITION_DEBUG:
+            self.streaming_controller_lt.update()
+    
+    def move_to_position(self, qpos):
+        try:
+            try:
+             Idx = get_Idx(self.robot.params['tool'])
+            except UnsupportedToolError:
+                self.get_logger().error('Unsupported tool for streaming position control.')
+            if len(qpos) != Idx.num_joints:
+                self.get_logger().error('Received qpos does not match the number of joints in the robot')
+                return
+            self.robot.arm.move_to(qpos[Idx.ARM])
+            self.robot.lift.move_to(qpos[Idx.LIFT])
+            self.robot.end_of_arm.move_to('wrist_yaw', qpos[Idx.WRIST_YAW])
+            if 'wrist_pitch' in self.robot.end_of_arm.joints:
+                self.robot.end_of_arm.move_to('wrist_pitch', qpos[Idx.WRIST_PITCH])
+            if 'wrist_roll' in self.robot.end_of_arm.joints:
+                self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
+            self.robot.head.move_to('head_pan', qpos[Idx.HEAD_PAN])
+            self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
+            if abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode != 'position':
+                self.get_logger().error('Cannot move base in both translation and rotation at the same time in position mode')
+            elif abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and self.robot_mode == 'position':
+                self.robot.base.translate_by(qpos[Idx.BASE_TRANSLATE])
+            elif abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode == 'position':
+                self.robot.base.rotate_by(qpos[Idx.BASE_ROTATE])
+            if 'stretch_gripper' in self.robot.end_of_arm.joints:
+                pos = self.gripper_conversion.finger_to_robotis(qpos[Idx.GRIPPER])
+                self.robot.end_of_arm.move_to('stretch_gripper', pos)
+            self.get_logger().info(f"Moved to position qpos: {qpos}")
+        except Exception as e:
+            self.get_logger().error('Failed to move to position: {0}'.format(e))
 
     def command_mobile_base_velocity_and_publish_state(self):
         self.robot_mode_rwlock.acquire_read()
@@ -366,6 +427,11 @@ class StretchDriver(Node):
         tool_msg.data = self.robot.end_of_arm.name
         self.tool_pub.publish(tool_msg)
 
+        # publish streaming position status
+        streaming_position_status = Bool()
+        streaming_position_status.data = self.streaming_position_activated
+        self.streaming_position_mode_pub.publish(streaming_position_status)
+
         # publish joint state for the arm
         joint_state = JointState()
         joint_state.header.stamp = current_time
@@ -590,7 +656,16 @@ class StretchDriver(Node):
         self.change_mode('gamepad', code_to_run)
         return True, 'Now in gamepad mode.'
     
+    def activate_streaming_position(self, request):
+        self.streaming_position_activated = True
+        self.get_logger().info('Activated streaming position.')
+        return True, 'Activated streaming position.'
 
+    def deactivate_streaming_position(self, request):
+        self.streaming_position_activated = False
+        self.get_logger().info('Deactivated streaming position.')
+        return True, 'Deactivated streaming position.'
+    
     # SERVICE CALLBACKS ##############
 
     def stop_the_robot_callback(self, request, response):
@@ -658,6 +733,18 @@ class StretchDriver(Node):
 
         response.success = True
         response.message = f'is_runstopped: {request.data}'
+        return response
+    
+    def activate_streaming_position_service_callback(self, request, response):
+        success, message = self.activate_streaming_position(request)
+        response.success = success
+        response.message = message
+        return response
+
+    def deactivate_streaming_position_service_callback(self, request, response):
+        success, message = self.deactivate_streaming_position(request)
+        response.success = success
+        response.message = message
         return response
 
     def get_joint_states_callback(self, request, response):
@@ -887,6 +974,7 @@ class StretchDriver(Node):
         self.homed_pub = self.create_publisher(Bool, 'is_homed', 1)
         self.mode_pub = self.create_publisher(String, 'mode', 1)
         self.tool_pub = self.create_publisher(String, 'tool', 1)
+        self.streaming_position_mode_pub = self.create_publisher(Bool, 'is_streaming_position', 1)
 
         self.imu_mobile_base_pub = self.create_publisher(Imu, 'imu_mobile_base', 1)
         self.magnetometer_mobile_base_pub = self.create_publisher(MagneticField, 'magnetometer_mobile_base', 1)
@@ -900,6 +988,8 @@ class StretchDriver(Node):
         self.create_subscription(Twist, "cmd_vel", self.set_mobile_base_velocity_callback, 1, callback_group=self.group)
         
         self.create_subscription(Joy, "gamepad_joy", self.set_gamepad_motion_callback, 1, callback_group=self.group)
+
+        self.create_subscription(Float64MultiArray, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.group)
 
         self.declare_parameter('rate', 30.0)
         self.joint_state_rate = self.get_parameter('rate').value
@@ -956,6 +1046,14 @@ class StretchDriver(Node):
         self.switch_to_gamepad_mode_service = self.create_service(Trigger,
                                                                     '/switch_to_gamepad_mode',
                                                                     self.gamepad_mode_service_callback)
+    
+        self.activate_streaming_position_service = self.create_service(Trigger,
+                                                                '/activate_streaming_position',
+                                                                self.activate_streaming_position_service_callback)
+
+        self.deactivate_streaming_position_service = self.create_service(Trigger,
+                                                                '/deactivate_streaming_position',
+                                                                self.deactivate_streaming_position_service_callback)
 
         self.stop_the_robot_service = self.create_service(Trigger,
                                                           '/stop_the_robot',

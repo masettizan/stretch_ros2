@@ -46,6 +46,10 @@ If set to true, motion action servers will fail on out-of-range commands.
 
 Can be set to `position`, `navigation`, and `trajectory` modes.
 
+##### Streming Position Control
+When Streaming position control is activated, publish goal Joint pose as a `Float64MultiArray`. Streaming position control can be activated and deactivated by calling the services `/activate_streaming_position` and `/deactivate_streaming_position`. The current activation state is published in topic `/is_streaming_position`.
+This feature can be used in `position` and `navigation` modes. [More info on framing Goal pose array](https://github.com/hello-robot/stretch_ros2/pull/154#issue-2449787145).
+
 ##### calibrated_controller_yaml_file
 
 Path to the calibrated controller args file

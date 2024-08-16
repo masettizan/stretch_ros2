@@ -18,6 +18,7 @@ import cv2
 import ros2_numpy
 
 import pyquaternion
+from statistics import mean
 
 from rclpy.action import ActionClient
 from control_msgs.action import FollowJointTrajectory
@@ -626,3 +627,35 @@ def preprocess_gripper_trajectory(trajectory):
     gripper_index = trajectory.joint_names.index(present_gripper_joints[0])
     trajectory.joint_names[gripper_index] = 'stretch_gripper'
     return trajectory
+
+
+class LoopTimer:
+    def __init__(self, name="Loop", print_debug = False, print_interval=.5):
+        self.name = name
+        self.print_interval = print_interval
+        self.start_time = time.time()
+        self.last_print_time = self.start_time
+        self.iterations = 0
+        self.print_debug = print_debug
+        self.last_update_time = self.start_time
+    
+    def reset(self):
+        self.iterations = 0
+        self.start_time = time.time()
+
+    def update(self):
+        self.iterations += 1
+        current_time = time.time()
+        self.last_update_time = current_time
+        elapsed_time = current_time - self.last_print_time
+        total_elapsed_time = current_time - self.start_time
+        avg_rate = self.iterations / total_elapsed_time
+        if elapsed_time >= self.print_interval:
+            if self.print_debug:
+                print("-"*20)
+                print(f"{self.name} \n"
+                    f"Iteration: {self.iterations}\n"
+                    f"Elapsed Time: {total_elapsed_time:.2f}s\n"
+                    f"Average Rate: {avg_rate:.2f} Hz")
+                print("-"*20)
+            self.last_print_time = current_time
