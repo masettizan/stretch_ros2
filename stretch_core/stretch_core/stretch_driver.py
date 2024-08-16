@@ -18,6 +18,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TransformStamped
@@ -26,6 +27,7 @@ from std_srvs.srv import Trigger
 from std_srvs.srv import SetBool
 
 from nav_msgs.msg import Odometry
+from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParametersResult
 from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
 from std_msgs.msg import Bool, String, Float64MultiArray
 
@@ -46,9 +48,6 @@ class StretchDriver(Node):
         super().__init__('stretch_driver')
         self.use_robotis_head = True
         self.use_robotis_end_of_arm = True
-
-        self.default_goal_timeout_s = 10.0
-        self.default_goal_timeout_duration = Duration(seconds=self.default_goal_timeout_s)
 
         # Initialize calibration offsets
         self.head_tilt_calibrated_offset_rad = 0.0
@@ -789,6 +788,17 @@ class StretchDriver(Node):
         response.message = f'is self collision avoidance enabled: {enable_self_collision_avoidance}'
         return response
 
+    def parameter_callback(self, parameters: list[Parameter]) -> SetParametersResult:
+        """
+        Update the parameters that allow for dynamic updates.
+        """
+        for parameter in parameters:
+            if parameter.name == "default_goal_timeout_s":
+                self.default_goal_timeout_s = parameter.value
+                self.default_goal_timeout_duration = Duration(seconds=self.default_goal_timeout_s)
+                self.get_logger().info(f"Set default_goal_timeout_s to {self.default_goal_timeout_s}")
+        return SetParametersResult(successful=True)
+
     def home_the_robot(self):
         self.robot_mode_rwlock.acquire_read()
         can_home = self.robot_mode in self.control_modes
@@ -983,9 +993,18 @@ class StretchDriver(Node):
 
         self.declare_parameter('rate', 30.0)
         self.joint_state_rate = self.get_parameter('rate').value
-        self.declare_parameter('timeout', 0.5)
+        self.declare_parameter('timeout', 0.5, ParameterDescriptor(
+            type=ParameterType.PARAMETER_DOUBLE,
+            description='Timeout (sec) after which Twist/Joy commands are considered stale',
+        ))
         self.timeout_s = self.get_parameter('timeout').value
         self.timeout = Duration(seconds=self.timeout_s)
+        self.declare_parameter('default_goal_timeout_s', 10.0, ParameterDescriptor(
+            type=ParameterType.PARAMETER_DOUBLE,
+            description='Default timeout (sec) for goal execution',
+        ))
+        self.default_goal_timeout_s = self.get_parameter('default_goal_timeout_s').value
+        self.default_goal_timeout_duration = Duration(seconds=self.default_goal_timeout_s)
         self.get_logger().info(f"rate = {self.joint_state_rate} Hz")
         self.get_logger().info(f"twist timeout = {self.timeout_s} s")
 
@@ -1006,6 +1025,9 @@ class StretchDriver(Node):
         
         self.declare_parameter('action_server_rate', 30.0)
         self.action_server_rate = self.get_parameter('action_server_rate').value
+
+        # Add a callback for updating parameters
+        self.add_on_set_parameters_callback(self.parameter_callback)
 
         self.diagnostics = StretchDiagnostics(self, self.robot)
 
@@ -1066,11 +1088,10 @@ class StretchDriver(Node):
 def main():
     try:
         rclpy.init()
-        executor = MultiThreadedExecutor(num_threads=2)
+        executor = MultiThreadedExecutor(num_threads=5)
         node = StretchDriver()
         node.joint_trajectory_action = JointTrajectoryAction(node, node.action_server_rate)
         executor.add_node(node)
-        executor.add_node(node.joint_trajectory_action)
         try:
             executor.spin()
         finally:
