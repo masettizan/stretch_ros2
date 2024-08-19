@@ -29,10 +29,8 @@ from std_srvs.srv import SetBool
 from nav_msgs.msg import Odometry
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParametersResult
 from sensor_msgs.msg import BatteryState, JointState, Imu, MagneticField, Joy
-from std_msgs.msg import Bool, String, Float64MultiArray
-
+from std_msgs.msg import Bool, String
 from hello_helpers.gripper_conversion import GripperConversion
-from hello_helpers.joint_qpos_conversion import get_Idx, UnsupportedToolError
 from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
@@ -113,7 +111,7 @@ class StretchDriver(Node):
         self.last_twist_time = self.get_clock().now()
         self.robot_mode_rwlock.release_read()
     
-    def set_robot_streaming_position_callback(self, msg):
+    def set_robot_streaming_position_callback(self, msg: JointState):
         self.robot_mode_rwlock.acquire_read()
         if not self.streaming_position_activated:
             self.get_logger().error('Streaming position is not activated.'
@@ -132,40 +130,58 @@ class StretchDriver(Node):
             if (self.get_clock().now().nanoseconds * 1e-9) - self.streaming_controller_lt.last_update_time > 5.0:
                 print('Reset Streaming position looptimer after 5s no message received.')
                 self.streaming_controller_lt.reset()
-        qpos = msg.data
-        self.move_to_position(qpos)
+        self.move_to_position(msg)
         self.robot_mode_rwlock.release_read()
         if STREAMING_POSITION_DEBUG:
             self.streaming_controller_lt.update()
     
-    def move_to_position(self, qpos):
-        try:
-            try:
-             Idx = get_Idx(self.robot.params['tool'])
-            except UnsupportedToolError:
-                self.get_logger().error('Unsupported tool for streaming position control.')
-            if len(qpos) != Idx.num_joints:
-                self.get_logger().error('Received qpos does not match the number of joints in the robot')
-                return
-            self.robot.arm.move_to(qpos[Idx.ARM])
-            self.robot.lift.move_to(qpos[Idx.LIFT])
-            self.robot.end_of_arm.move_to('wrist_yaw', qpos[Idx.WRIST_YAW])
-            if 'wrist_pitch' in self.robot.end_of_arm.joints:
-                self.robot.end_of_arm.move_to('wrist_pitch', qpos[Idx.WRIST_PITCH])
-            if 'wrist_roll' in self.robot.end_of_arm.joints:
-                self.robot.end_of_arm.move_to('wrist_roll', qpos[Idx.WRIST_ROLL])
-            self.robot.head.move_to('head_pan', qpos[Idx.HEAD_PAN])
-            self.robot.head.move_to('head_tilt', qpos[Idx.HEAD_TILT])
-            if abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode != 'position':
+    def move_to_position(self, msg: JointState):
+        try: 
+            if 'joint_base_translate' in msg.name and 'joint_base_rotate' in msg.name:
                 self.get_logger().error('Cannot move base in both translation and rotation at the same time in position mode')
-            elif abs(qpos[Idx.BASE_TRANSLATE]) > 0.0 and self.robot_mode == 'position':
-                self.robot.base.translate_by(qpos[Idx.BASE_TRANSLATE])
-            elif abs(qpos[Idx.BASE_ROTATE]) > 0.0 and self.robot_mode == 'position':
-                self.robot.base.rotate_by(qpos[Idx.BASE_ROTATE])
-            if 'stretch_gripper' in self.robot.end_of_arm.joints:
-                pos = self.gripper_conversion.finger_to_robotis(qpos[Idx.GRIPPER])
-                self.robot.end_of_arm.move_to('stretch_gripper', pos)
-            self.get_logger().info(f"Moved to position qpos: {qpos}")
+                return
+            
+            pos_length_match = len(msg.name) == len(msg.position)
+            if not pos_length_match:
+                self.get_logger().error('Streaming Position Command: Length of joint names and position list does not match.')
+                return
+            vel_present = len(msg.velocity) > 0 and len(msg.name) == len(msg.velocity)
+            if not vel_present:
+                self.get_logger().error('Streaming Position Command: Length of joint names and velocity list does not match.')
+                return
+            for joint,i in zip(msg.name, range(len(msg.name))):
+                if joint == 'joint_lift':
+                    v = msg.velocity[i] if vel_present else None 
+                    self.robot.lift.move_to(msg.position[i], v)
+                elif joint == 'joint_arm':
+                    v = msg.velocity[i] if vel_present else None 
+                    self.robot.arm.move_to(msg.position[i], v)
+                elif joint == 'joint_wrist_yaw':
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.end_of_arm.move_to('wrist_yaw', msg.position[i], v)
+                elif joint == 'joint_wrist_pitch'and 'wrist_pitch' in self.robot.end_of_arm.joints:
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.end_of_arm.move_to('wrist_pitch', msg.position[i], v)
+                elif joint == 'joint_wrist_roll' and 'wrist_roll' in self.robot.end_of_arm.joints:
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.end_of_arm.move_to('wrist_roll', msg.position[i], v)
+                elif joint == 'joint_head_pan':
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.head.move_to('head_pan', msg.position[i], v)
+                elif joint == 'joint_head_tilt':
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.head.move_to('head_tilt', msg.position[i], v)
+                elif joint == 'joint_base_translate':
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.base.translate_by(msg.position[i], v)
+                elif joint == 'joint_base_rotate':
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.base.rotate_by(msg.position[i], v)
+                elif joint == 'joint_gripper' and 'stretch_gripper' in self.robot.end_of_arm.joints:
+                    v = msg.velocity[i] if vel_present else None
+                    self.robot.end_of_arm.move_to('stretch_gripper', self.gripper_conversion.finger_to_robotis(msg.position[i]), v)
+                else:
+                    self.get_logger().error(f'Joint name {msg.name[i]} not recognized.')
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))
 
@@ -989,7 +1005,7 @@ class StretchDriver(Node):
         
         self.create_subscription(Joy, "gamepad_joy", self.set_gamepad_motion_callback, 1, callback_group=self.group)
 
-        self.create_subscription(Float64MultiArray, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.group)
+        self.create_subscription(JointState, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.group)
 
         self.declare_parameter('rate', 30.0)
         self.joint_state_rate = self.get_parameter('rate').value
