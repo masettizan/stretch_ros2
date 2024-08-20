@@ -35,10 +35,10 @@ from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
-
+import time
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
-STREAMING_POSITION_DEBUG = False
+STREAMING_POSITION_DEBUG = True
 
 class StretchDriver(Node):
 
@@ -145,43 +145,31 @@ class StretchDriver(Node):
             if not pos_length_match:
                 self.get_logger().error('Streaming Position Command: Length of joint names and position list does not match.')
                 return
-            vel_present = len(msg.velocity) > 0 and len(msg.name) == len(msg.velocity)
-            if not vel_present:
+            
+            vel_present = len(msg.velocity) > 0
+            if vel_present and len(msg.name) != len(msg.velocity):
                 self.get_logger().error('Streaming Position Command: Length of joint names and velocity list does not match.')
                 return
-            for joint,i in zip(msg.name, range(len(msg.name))):
-                if joint == 'joint_lift':
-                    v = msg.velocity[i] if vel_present else None 
-                    self.robot.lift.move_to(msg.position[i], v)
-                elif joint == 'joint_arm':
-                    v = msg.velocity[i] if vel_present else None 
-                    self.robot.arm.move_to(msg.position[i], v)
-                elif joint == 'joint_wrist_yaw':
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.end_of_arm.move_to('wrist_yaw', msg.position[i], v)
-                elif joint == 'joint_wrist_pitch'and 'wrist_pitch' in self.robot.end_of_arm.joints:
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.end_of_arm.move_to('wrist_pitch', msg.position[i], v)
-                elif joint == 'joint_wrist_roll' and 'wrist_roll' in self.robot.end_of_arm.joints:
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.end_of_arm.move_to('wrist_roll', msg.position[i], v)
-                elif joint == 'joint_head_pan':
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.head.move_to('head_pan', msg.position[i], v)
-                elif joint == 'joint_head_tilt':
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.head.move_to('head_tilt', msg.position[i], v)
-                elif joint == 'joint_base_translate':
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.base.translate_by(msg.position[i], v)
-                elif joint == 'joint_base_rotate':
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.base.rotate_by(msg.position[i], v)
-                elif joint == 'joint_gripper' and 'stretch_gripper' in self.robot.end_of_arm.joints:
-                    v = msg.velocity[i] if vel_present else None
-                    self.robot.end_of_arm.move_to('stretch_gripper', self.gripper_conversion.finger_to_robotis(msg.position[i]), v)
-                else:
-                    self.get_logger().error(f'Joint name {msg.name[i]} not recognized.')
+            
+            joint_move_map = {
+                'joint_lift': lambda pos, vel: self.robot.lift.move_to(pos, vel),
+                'joint_arm': lambda pos, vel: self.robot.arm.move_to(pos, vel),
+                'joint_wrist_yaw': lambda pos, vel: self.robot.end_of_arm.move_to('wrist_yaw', pos, vel),
+                'joint_wrist_pitch': lambda pos, vel: self.robot.end_of_arm.move_to('wrist_pitch', pos, vel) if 'wrist_pitch' in self.robot.end_of_arm.joints else None,
+                'joint_wrist_roll': lambda pos, vel: self.robot.end_of_arm.move_to('wrist_roll', pos, vel) if 'wrist_roll' in self.robot.end_of_arm.joints else None,
+                'joint_head_pan': lambda pos, vel: self.robot.head.move_to('head_pan', pos, vel),
+                'joint_head_tilt': lambda pos, vel: self.robot.head.move_to('head_tilt', pos, vel),
+                'joint_base_translate': lambda pos, vel: self.robot.base.translate_by(pos, vel),
+                'joint_base_rotate': lambda pos, vel: self.robot.base.rotate_by(pos, vel),
+                'joint_gripper': lambda pos, vel: self.robot.end_of_arm.move_to('stretch_gripper', self.gripper_conversion.finger_to_robotis(pos), vel) if 'stretch_gripper' in self.robot.end_of_arm.joints else None,
+            }
+
+            start = time.perf_counter()
+            for joint, pos, i in zip(msg.name, msg.position, range(len(msg.name))):
+                v = msg.velocity[i] if vel_present else None
+                if joint in joint_move_map:
+                    joint_move_map[joint](pos, v)
+            print(f'Execution time: {(time.perf_counter() - start)*1000}ms')
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))
 
