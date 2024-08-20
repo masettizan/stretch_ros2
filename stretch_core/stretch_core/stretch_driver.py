@@ -35,7 +35,7 @@ from hello_helpers.hello_misc import LoopTimer
 from hello_helpers.gamepad_conversion import unpack_joy_to_gamepad_state, unpack_gamepad_state_to_joy, get_default_joy_msg
 from .joint_trajectory_server import JointTrajectoryAction
 from .stretch_diagnostics import StretchDiagnostics
-import time
+
 GRIPPER_DEBUG = False
 BACKLASH_DEBUG = False
 STREAMING_POSITION_DEBUG = True
@@ -164,12 +164,10 @@ class StretchDriver(Node):
                 'joint_gripper': lambda pos, vel: self.robot.end_of_arm.move_to('stretch_gripper', self.gripper_conversion.finger_to_robotis(pos), vel) if 'stretch_gripper' in self.robot.end_of_arm.joints else None,
             }
 
-            start = time.perf_counter()
             for joint, pos, i in zip(msg.name, msg.position, range(len(msg.name))):
                 v = msg.velocity[i] if vel_present else None
                 if joint in joint_move_map:
                     joint_move_map[joint](pos, v)
-            print(f'Execution time: {(time.perf_counter() - start)*1000}ms')
         except Exception as e:
             self.get_logger().error('Failed to move to position: {0}'.format(e))
 
