@@ -1096,7 +1096,6 @@ def main():
             executor.spin()
         finally:
             executor.shutdown()
-            node.joint_trajectory_action.destroy_node()
             node.destroy_node()
     except (KeyboardInterrupt, ThreadServiceExit):
         node.gamepad_teleop.stop()
