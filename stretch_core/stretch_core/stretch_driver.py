@@ -16,7 +16,7 @@ from tf_transformations import quaternion_from_euler
 import rclpy
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 
@@ -970,12 +970,13 @@ class StretchDriver(Node):
         self.is_gamepad_dongle_pub = self.create_publisher(Bool,'is_gamepad_dongle', 1)
         self.gamepad_state_pub = self.create_publisher(Joy,'stretch_gamepad_state', 1) # decode using gamepad_conversion.unpack_joy_to_gamepad_state() on client side
 
-        self.group = MutuallyExclusiveCallbackGroup()
-        self.create_subscription(Twist, "cmd_vel", self.set_mobile_base_velocity_callback, 1, callback_group=self.group)
+        self.main_group = ReentrantCallbackGroup()
+        self.mutex_group = MutuallyExclusiveCallbackGroup()
+        self.create_subscription(Twist, "cmd_vel", self.set_mobile_base_velocity_callback, 1, callback_group=self.main_group)
         
-        self.create_subscription(Joy, "gamepad_joy", self.set_gamepad_motion_callback, 1, callback_group=self.group)
+        self.create_subscription(Joy, "gamepad_joy", self.set_gamepad_motion_callback, 1, callback_group=self.main_group)
 
-        self.create_subscription(Float64MultiArray, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.group)
+        self.create_subscription(Float64MultiArray, "joint_pose_cmd", self.set_robot_streaming_position_callback, 1, callback_group=self.main_group)
 
         self.declare_parameter('rate', 30.0)
         self.joint_state_rate = self.get_parameter('rate').value
@@ -1019,56 +1020,68 @@ class StretchDriver(Node):
 
         self.switch_to_navigation_mode_service = self.create_service(Trigger,
                                                                      '/switch_to_navigation_mode',
-                                                                     self.navigation_mode_service_callback)
+                                                                     self.navigation_mode_service_callback,
+                                                                     callback_group=self.main_group)
 
         self.switch_to_position_mode_service = self.create_service(Trigger,
                                                                    '/switch_to_position_mode',
-                                                                   self.position_mode_service_callback)
+                                                                   self.position_mode_service_callback,
+                                                                   callback_group=self.main_group)
 
         self.switch_to_trajectory_mode_service = self.create_service(Trigger,
                                                                        '/switch_to_trajectory_mode',
-                                                                       self.trajectory_mode_service_callback)
+                                                                       self.trajectory_mode_service_callback,
+                                                                       callback_group=self.main_group)
 
         self.switch_to_gamepad_mode_service = self.create_service(Trigger,
                                                                     '/switch_to_gamepad_mode',
-                                                                    self.gamepad_mode_service_callback)
+                                                                    self.gamepad_mode_service_callback,
+                                                                    callback_group=self.main_group)
     
         self.activate_streaming_position_service = self.create_service(Trigger,
                                                                 '/activate_streaming_position',
-                                                                self.activate_streaming_position_service_callback)
+                                                                self.activate_streaming_position_service_callback,
+                                                                callback_group=self.main_group)
 
         self.deactivate_streaming_position_service = self.create_service(Trigger,
                                                                 '/deactivate_streaming_position',
-                                                                self.deactivate_streaming_position_service_callback)
+                                                                self.deactivate_streaming_position_service_callback,
+                                                                callback_group=self.main_group)
 
         self.stop_the_robot_service = self.create_service(Trigger,
                                                           '/stop_the_robot',
-                                                          self.stop_the_robot_callback)
+                                                          self.stop_the_robot_callback,
+                                                          callback_group=self.main_group)
 
         self.home_the_robot_service = self.create_service(Trigger,
                                                           '/home_the_robot',
-                                                          self.home_the_robot_callback)
+                                                          self.home_the_robot_callback,
+                                                          callback_group=self.main_group)
 
         self.stow_the_robot_service = self.create_service(Trigger,
                                                            '/stow_the_robot',
-                                                           self.stow_the_robot_callback)
+                                                           self.stow_the_robot_callback,
+                                                           callback_group=self.main_group)
 
         self.runstop_service = self.create_service(SetBool,
                                                    '/runstop',
-                                                   self.runstop_service_callback)
+                                                   self.runstop_service_callback,
+                                                   callback_group=self.main_group)
 
         self.get_joint_states = self.create_service(Trigger,
                                                     '/get_joint_states',
-                                                    self.get_joint_states_callback)
+                                                    self.get_joint_states_callback,
+                                                    callback_group=self.main_group)
 
         self.self_collision_avoidance = self.create_service(SetBool,
                                                             '/self_collision_avoidance',
-                                                            self.self_collision_avoidance_callback)
+                                                            self.self_collision_avoidance_callback,
+                                                            callback_group=self.main_group)
 
         # start loop to command the mobile base velocity, publish
         # odometry, and publish joint states
         timer_period = 1.0 / self.joint_state_rate
-        self.timer = self.create_timer(timer_period, self.command_mobile_base_velocity_and_publish_state)
+        self.timer = self.create_timer(timer_period, self.command_mobile_base_velocity_and_publish_state, callback_group=self.mutex_group)
 
 
 def main():
