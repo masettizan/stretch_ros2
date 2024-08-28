@@ -1,15 +1,18 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, LogInfo
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
+from launch.launch_context import LaunchContext
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-
+import rclpy
 
 def generate_launch_description():
+    logger = rclpy.logging.get_logger('navigation_launch')
+
     stretch_core_path = get_package_share_directory('stretch_core')
     stretch_navigation_path = get_package_share_directory('stretch_nav2')
     navigation_bringup_path = get_package_share_directory('nav2_bringup')
@@ -33,11 +36,25 @@ def generate_launch_description():
                                    'map', 'home2.yaml'),
         description='Full path to the map.yaml file to use for navigation')
 
+    # Error out if the map file does not exist
+    def map_file_check(context: LaunchContext):
+        map_path = LaunchConfiguration('map').perform(context)
+        if not os.path.exists(map_path):
+            msg='Map file not found in given path: {}'.format(map_path)
+            logger.error(msg)
+            raise FileNotFoundError(msg)
+        if not map_path.endswith('.yaml'):
+            msg = 'Map file is not a yaml file: {}'.format(map_path)
+            logger.error(msg)
+            raise FileNotFoundError(msg)
+        
+    map_path_check_action = OpaqueFunction(function=map_file_check)
+
     params_file_param = DeclareLaunchArgument(
         'params_file',
         default_value=os.path.join(stretch_navigation_path, 'config', 'nav2_params.yaml'),
         description='Full path to the ROS2 parameters file to use for all launched nodes')
-
+        
     rviz_param = DeclareLaunchArgument('use_rviz', default_value='true', choices=['true', 'false'])
 
     stretch_driver_launch = IncludeLaunchDescription(
@@ -75,4 +92,5 @@ def generate_launch_description():
         base_teleop_launch,
         navigation_bringup_launch,
         rviz_launch,
+        map_path_check_action,
     ])
