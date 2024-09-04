@@ -18,21 +18,24 @@ from . import merge_maps as mm
 from . import ros_max_height_image as rm
 
 def stow_and_lower_arm(node):
-    pose = {'joint_gripper_finger_left': -0.15}
-    node.move_to_pose(pose)
-    pose = {'wrist_extension': 0.01}
-    node.move_to_pose(pose)
-
-    # gripper backwards stow
-    pose = {'joint_wrist_yaw': 3.3}
-    
-    # gripper forward stow needs a better forward range of motion to work well
-    node.move_to_pose(pose)
-    
-    # avoid blocking the laser range finder with the gripper
-    pose = {'joint_lift': 0.22}
-    node.move_to_pose(pose)
+    node.stow_the_robot()
     return 'lowered'
+    # Depricate the use of hard coded stow positions
+    # ==============================================
+    # pose = {'joint_gripper_finger_left': -0.15}
+    # node.move_to_pose(pose)
+    # pose = {'wrist_extension': 0.01}
+    # node.move_to_pose(pose)
+
+    # # gripper backwards stow
+    # pose = {'joint_wrist_yaw': 3.3}
+    
+    # # gripper forward stow needs a better forward range of motion to work well
+    # node.move_to_pose(pose)
+    
+    # # avoid blocking the laser range finder with the gripper
+    # pose = {'joint_lift': 0.22}
+    # node.move_to_pose(pose)
 
 
 def draw_robot_pose(robot_xya_pix, image, m_per_pix, color=(0, 0, 255)):
