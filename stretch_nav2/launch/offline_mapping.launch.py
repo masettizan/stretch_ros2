@@ -31,14 +31,10 @@ def generate_launch_description():
 
     stretch_driver_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([stretch_core_path, '/launch/stretch_driver.launch.py']),
-        launch_arguments={'mode': 'navigation', 'broadcast_odom_tf': 'True'}.items())
+        launch_arguments={'mode': 'gamepad', 'broadcast_odom_tf': 'True'}.items())
 
     rplidar_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([stretch_core_path, '/launch/rplidar.launch.py']))
-
-    base_teleop_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([stretch_navigation_path, '/launch/teleop_twist.launch.py']),
-        launch_arguments={'teleop_type': LaunchConfiguration('teleop_type')}.items())
 
     offline_mapping_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([get_package_share_directory('slam_toolbox'), '/launch/offline_launch.py']))
@@ -54,7 +50,6 @@ def generate_launch_description():
         declare_slam_params_file_cmd,
         stretch_driver_launch,
         rplidar_launch,
-        base_teleop_launch,
         offline_mapping_launch,
         rviz_launch,
     ])
