@@ -512,6 +512,15 @@ class StretchDriver(Node):
         joint_state.effort = efforts
         self.joint_state_pub.publish(joint_state)
 
+        # publish wheel effort
+        wheel_effort = JointState()
+        wheel_effort.header.stamp = current_time
+        wheel_effort.name = ['joint_left_wheel_current', 'joint_right_wheel_current', 'joint_left_wheel_effortpct', 'joint_right_wheel_effortpct']
+        wheel_effort.position = [0.0, 0.0]
+        wheel_effort.velocity = [0.0, 0.0]
+        wheel_effort.effort = [base_status['left_wheel']['current'], base_status['right_wheel']['current'], base_status['left_wheel']['effort_pct'], base_status['right_wheel']['effort_pct']]
+        self.wheel_effort_pub.publish(wheel_effort)
+
         ##################################################
         # publish IMU sensor data
         imu_status = robot_status['pimu']['imu']
@@ -1002,6 +1011,7 @@ class StretchDriver(Node):
 
         self.joint_state_pub = self.create_publisher(JointState, 'joint_states', 1)
         self.joint_limits_pub = self.create_publisher(JointState, 'joint_limits', 1)
+        self.wheel_effort_pub = self.create_publisher(JointState, 'wheel_effort', 1)
 
         self.last_twist_time = self.get_clock().now()
         self.last_gamepad_joy_time = self.get_clock().now()
