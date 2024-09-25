@@ -15,7 +15,6 @@ import threading
 
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
-from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 
 from control_msgs.action import FollowJointTrajectory
@@ -39,7 +38,7 @@ class JointTrajectoryAction:
                                    cancel_callback=self.cancel_cb,
                                    goal_callback=self.goal_cb,
                                    handle_accepted_callback=self.handle_accepted_cb,
-                                   callback_group=ReentrantCallbackGroup())
+                                   callback_group=node.main_group)
         
         self.debug_dir = Path(hu.get_stretch_directory('goals'))
         if not self.debug_dir.exists():
