@@ -189,15 +189,16 @@ class StretchDriver(Node):
         else:
             self.gamepad_teleop.update_gamepad_state(self.robot) # Update gamepad input readings within gamepad_teleop instance
         
-        # set new mobile base velocities, if appropriate
-        # check on thread safety for this with callback that sets velocity command values
+        # Set new mobile base velocities
         if self.robot_mode == 'navigation':
             time_since_last_twist = self.get_clock().now() - self.last_twist_time
             if time_since_last_twist < self.timeout:
                 self.robot.base.set_velocity(self.linear_velocity_mps, self.angular_velocity_radps)
                 # self.robot.push_command() #Moved to main
+            elif time_since_last_twist < Duration(seconds=self.timeout_s+1.0):
+                self.robot.base.translate_by(0)
+                # self.robot.push_command() #Moved to main
             else:
-                # Too much information in general, although it could be blocked, since it's just INFO.
                 self.robot.base.set_velocity(0.0, 0.0)
                 # self.robot.push_command() #Moved to main
 
