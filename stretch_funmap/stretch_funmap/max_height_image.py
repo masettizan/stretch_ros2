@@ -174,15 +174,15 @@ class MaxHeightImage:
         # Use ceil so that pixels on the far edges of the image can
         # represent column volumes truncated by the volume of interest
         # borders.
-        num_x_bins = np.int(np.ceil(self.voi.x_in_m / self.m_per_pix))
-        num_y_bins = np.int(np.ceil(self.voi.y_in_m / self.m_per_pix))
+        num_x_bins = int(np.ceil(self.voi.x_in_m / self.m_per_pix))
+        num_y_bins = int(np.ceil(self.voi.y_in_m / self.m_per_pix))
 
         def find_minimum_m_per_height_unit(z_in_m, max_z_bins):
             m_per_height_unit = z_in_m / (max_z_bins - 1)
             # Check for off by one error and correct it if
             # necessary. This type of error is likely due to float
             # precision, int casting, and ceil issues.
-            num_z_bins = 1 + np.int(np.ceil(z_in_m / m_per_height_unit))
+            num_z_bins = 1 + int(np.ceil(z_in_m / m_per_height_unit))
             if num_z_bins > max_z_bins:
                 m_per_height_unit = z_in_m / (max_z_bins - 2)
             return m_per_height_unit    
@@ -207,7 +207,7 @@ class MaxHeightImage:
             # truncated by the volume of interest borders. Add one to
             # account for 0 representing that no 3D points are in the
             # pixel column volume.
-            num_z_bins = 1 + np.int(np.ceil(self.voi.z_in_m / self.m_per_height_unit))
+            num_z_bins = 1 + int(np.ceil(self.voi.z_in_m / self.m_per_height_unit))
             
             if num_z_bins > max_z_bins:
                 print('WARNING: Unable to initialize MaxHeightImage with requested or default height resolution. Instead, using the highest resolution available for the given pixel_dtype. Consider changing pixel_dtype.')
