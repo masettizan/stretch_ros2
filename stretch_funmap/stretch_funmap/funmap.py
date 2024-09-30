@@ -1384,9 +1384,6 @@ class FunmapNode(hm.HelloNode):
 
         self.new_thread.join()
 
-        self.map_odom_tf_thread.join()
-        self.publish_map_point_cloud_thread.join()
-
 def main():
     try:
         node = FunmapNode()
