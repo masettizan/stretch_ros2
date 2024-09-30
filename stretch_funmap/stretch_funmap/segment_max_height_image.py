@@ -817,7 +817,7 @@ def segment(image, m_per_unit, zero_height_m, segmentation_scale=0.1, verbose=Fa
         print('*** ERROR: segment called using image with all zero entries ***')
         return None, None, None
     
-    value_hist, bin_edges = np.histogram(values, bins=num_bins, range=(range_min, range_max), normed=False, weights=None, density=True)
+    value_hist, bin_edges = np.histogram(values, bins=num_bins, range=(range_min, range_max), weights=None, density=True)
 
     scale = segmentation_scale
     sigma = scale * (bin_per_unit * dist_threshold)
@@ -867,7 +867,7 @@ def test_segment(image, mm_per_unit, zero_height_unit, segmentation_scale=0.1, v
     num_bins =  whole_number_multiplier * range_width 
     bin_per_unit = num_bins / float(range_width)
     values = image[image!=0].flatten()
-    value_hist, bin_edges = np.histogram(values, bins=num_bins, range=(range_min, range_max), normed=False, weights=None, density=True)
+    value_hist, bin_edges = np.histogram(values, bins=num_bins, range=(range_min, range_max), weights=None, density=True)
     
     # Simple Bimodal Histogram for Testing
     value_hist[:] = 0
