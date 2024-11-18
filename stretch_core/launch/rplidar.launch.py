@@ -47,7 +47,7 @@ def generate_launch_description():
             executable='sllidar_node',
             name='sllidar_node',
             parameters=[set_configurable_parameters(configurable_parameters)],
-            output='screen')
+            output='log')
 
     laser_filters = Node(
             package='laser_filters',

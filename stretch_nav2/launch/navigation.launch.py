@@ -52,7 +52,7 @@ def generate_launch_description():
 
     params_file_param = DeclareLaunchArgument(
         'params_file',
-        default_value=os.path.join(stretch_navigation_path, 'config', 'nav2_params.yaml'),
+        default_value=os.path.join(stretch_navigation_path, 'config', 'nav2_voxel_params.yaml'),
         description='Full path to the ROS2 parameters file to use for all launched nodes')
         
     rviz_param = DeclareLaunchArgument('use_rviz', default_value='true', choices=['true', 'false'])

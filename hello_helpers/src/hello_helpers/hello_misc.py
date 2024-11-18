@@ -284,7 +284,7 @@ class HelloNode(Node):
         return self.tool
     
     def main(self, node_name, node_topic_namespace, wait_for_first_pointcloud=True):
-        rclpy.init()
+        #rclpy.init()
         super().__init__(node_name, allow_undeclared_parameters=True, automatically_declare_parameters_from_overrides=True)
         
         self.node_name = node_name

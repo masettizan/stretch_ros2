@@ -408,6 +408,9 @@ class StretchDriver(Node):
             battery_state.present = robot_status['pimu']['charger_connected']
         self.power_pub.publish(battery_state)
         
+
+
+
         ##################################################
         # publish homed status
         homed_status = Bool()
@@ -417,7 +420,11 @@ class StretchDriver(Node):
         # publish runstop event
         runstop_event = Bool()
         runstop_event.data = robot_status['pimu']['runstop_event']
+        # check if e-stop is needed
+        if self.joy_runstop_enabled and self.gamepad_teleop.controller_state['right_trigger_pulled'] > 0.5:
+            runstop_event.data = True
         self.runstop_event_pub.publish(runstop_event)
+        
 
         # publish stretch_driver operation mode
         mode_msg = String()
@@ -871,7 +878,11 @@ class StretchDriver(Node):
             exit()
         if not self.robot.is_homed():
             self.get_logger().warn("Robot not homed. Call /home_the_robot service.")
-            
+        
+        self.declare_parameter('joy_runstop_enabled', True)
+        self.joy_runstop_enabled = self.get_parameter('joy_runstop_enabled').value
+        self.get_logger().info('joy_runstop_enabled = ' + str(self.joy_runstop_enabled))
+
         # Create Gamepad Teleop instance    
         self.gamepad_teleop = gamepad_teleop.GamePadTeleop(robot_instance=False,print_dongle_status=False, lock=self.robot_stop_lock)
         self.gamepad_teleop.startup(self.robot)

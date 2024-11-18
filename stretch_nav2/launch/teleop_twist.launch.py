@@ -46,7 +46,7 @@ def generate_launch_description():
             package='joy',
             executable='joy_node',
             parameters=joy_node_params,
-            output='screen',
+            output='log',
             condition=LaunchConfigurationEquals('teleop_type', TextSubstitution(text='joystick'))
     )
 
@@ -64,7 +64,7 @@ def generate_launch_description():
             package='teleop_twist_joy',
             executable='teleop_node',
             parameters=joystick_twist_teleop_params,
-            output='screen',
+            output='log',
             remappings=[('cmd_vel', '/stretch/cmd_vel')],
             condition=LaunchConfigurationEquals('teleop_type', TextSubstitution(text='joystick'))
     )

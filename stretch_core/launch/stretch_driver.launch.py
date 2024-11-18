@@ -46,7 +46,7 @@ def generate_launch_description():
 
     robot_state_publisher = Node(package='robot_state_publisher',
                                  executable='robot_state_publisher',
-                                 output='both',
+                                 output='log',
                                  parameters=[{'robot_description': robot_description_content},
                                              {'publish_frequency': 30.0}],
                                  arguments=['--ros-args', '--log-level', 'error'],)

@@ -1,0 +1,617 @@
+<sdf version='1.7'>
+  <model name='stretch_main'>
+    <link name='base_link'>
+      <inertial>
+        <pose>-0.084299 0.082746 0.518904 0 -0 0</pose>
+        <mass>3.16273</mass>
+        <inertia>
+          <ixx>0.492104</ixx>
+          <ixy>-0.00473116</ixy>
+          <ixz>-0.0340824</ixz>
+          <iyy>0.4836</iyy>
+          <iyz>-0.0605656</iyz>
+          <izz>0.0225133</izz>
+        </inertia>
+      </inertial>
+      <collision name='base_link_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/base_link.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name='base_link_fixed_joint_lump__caster_link_collision_1'>
+        <pose>-0.245 0 0.032 -1.5708 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.032</radius>
+          </sphere>
+        </geometry>
+      </collision>
+      <collision name='base_link_fixed_joint_lump__link_mast_collision_2'>
+        <pose>-0.067 0.135 0.0284 1.5708 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_mast.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name='base_link_fixed_joint_lump__link_head_collision_3'>
+        <pose>-0.067 0.134995 1.3584 7e-06 4e-06 -1.5708</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='base_link_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/base_link.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='base_link_fixed_joint_lump__caster_link_visual_1'>
+        <pose>-0.245 0 0.032 -1.5708 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/omni_wheel_m.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='base_link_fixed_joint_lump__link_mast_visual_2'>
+        <pose>-0.067 0.135 0.0284 1.5708 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_mast.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='base_link_fixed_joint_lump__link_head_visual_3'>
+        <pose>-0.067 0.134995 1.3584 7e-06 4e-06 -1.5708</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_left_wheel' type='revolute'>
+      <pose relative_to='base_link'>0 0.17035 0.0508 -1.5708 0 -0</pose>
+      <parent>base_link</parent>
+      <child>link_left_wheel</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+        <dynamics>
+          <damping>21.75</damping>
+          <friction>10.48</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_left_wheel'>
+      <pose relative_to='joint_left_wheel'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0 -0 -0.037544 0 -0 0</pose>
+        <mass>0.0042721</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_left_wheel_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_left_wheel.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_left_wheel_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_left_wheel.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_head_pan' type='revolute'>
+      <pose relative_to='base_link'>0.0061 -5e-06 1.3552 4e-06 -7e-06 -0</pose>
+      <parent>base_link</parent>
+      <child>link_head_pan</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-3.9</lower>
+          <upper>1.5</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_head_pan'>
+      <pose relative_to='joint_head_pan'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0.000327 0.0085 0.00013 0 -0 0</pose>
+        <mass>0.0273764</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_head_pan_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head_pan.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_head_pan_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head_pan.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_head_tilt' type='revolute'>
+      <pose relative_to='link_head_pan'>-0.0013 0.027762 -0.053311 1.5708 0 -0</pose>
+      <parent>link_head_pan</parent>
+      <child>link_head_tilt</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1.53</lower>
+          <upper>0.79</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_head_tilt'>
+      <pose relative_to='joint_head_tilt'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>0.007046 -0.021226 0.030206 0 -0 0</pose>
+        <mass>0.0902171</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_head_tilt_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head_tilt.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_head_tilt_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_head_tilt.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_lift' type='prismatic'>
+      <pose relative_to='base_link'>-0.104385 0.134999 0.195 -4e-06 -4e-06 1.5708</pose>
+      <parent>base_link</parent>
+      <child>link_lift</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>1.1</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_lift'>
+      <pose relative_to='joint_lift'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-0.057389 0.030718 0.010683 0 -0 0</pose>
+        <mass>0.340275</mass>
+        <inertia>
+          <ixx>0.000615788</ixx>
+          <ixy>-0.000119232</ixy>
+          <ixz>-0.000112834</ixz>
+          <iyy>0.00133783</iyy>
+          <iyz>-3.42328e-05</iyz>
+          <izz>0.00147485</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_lift_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_lift.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name='link_lift_fixed_joint_lump__link_arm_l4_collision_1'>
+        <pose>-0.2547 0 0 1.5708 0 -1.5708</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l4.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_lift_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_lift.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <visual name='link_lift_fixed_joint_lump__link_arm_l4_visual_1'>
+        <pose>-0.2547 0 0 1.5708 0 -1.5708</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l4.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_arm_l3' type='prismatic'>
+      <pose relative_to='link_lift'>-0.2677 0 -0 1.5708 0 -1.5708</pose>
+      <parent>link_lift</parent>
+      <child>link_arm_l3</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0.13</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_arm_l3'>
+      <pose relative_to='joint_arm_l3'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-1e-06 -2e-05 -0.09711 0 -0 0</pose>
+        <mass>0.0628927</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_arm_l3_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l3.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_arm_l3_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l3.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_arm_l2' type='prismatic'>
+      <pose relative_to='link_arm_l3'>0 0 0.013 0 0 -0</pose>
+      <parent>link_arm_l3</parent>
+      <child>link_arm_l2</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0.13</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_arm_l2'>
+      <pose relative_to='joint_arm_l2'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-1e-06 -2e-05 -0.096882 0 -0 0</pose>
+        <mass>0.0571386</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_arm_l2_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l2.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_arm_l2_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l2.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_arm_l1' type='prismatic'>
+      <pose relative_to='link_arm_l2'>0 0 0.013 -0 -0 0</pose>
+      <parent>link_arm_l2</parent>
+      <child>link_arm_l1</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0.13</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_arm_l1'>
+      <pose relative_to='joint_arm_l1'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>-1e-06 -2e-05 -0.096543 0 -0 0</pose>
+        <mass>0.051382</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_arm_l1_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l1.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_arm_l1_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l1.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_arm_l0' type='prismatic'>
+      <pose relative_to='link_arm_l1'>0 0 -0.01375 0 -0 0</pose>
+      <parent>link_arm_l1</parent>
+      <child>link_arm_l0</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0.13</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_arm_l0'>
+      <pose relative_to='joint_arm_l0'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>0.027058 -0.001899 -0.037781 0 -0 0</pose>
+        <mass>0.0850033</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_arm_l0_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l0.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_arm_l0_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_arm_l0.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_wrist_yaw' type='revolute'>
+      <pose relative_to='link_arm_l0'>0.083 -0.03075 0 1.5708 0 0</pose>
+      <parent>link_arm_l0</parent>
+      <child>link_wrist_yaw</child>
+      <axis>
+        <xyz>0 0 -1</xyz>
+        <limit>
+          <lower>-1.75</lower>
+          <upper>4</upper>
+          <effort>100</effort>
+          <velocity>1</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_wrist_yaw'>
+      <pose relative_to='joint_wrist_yaw'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>0 2.9e-05 -0.018967 0 -0 0</pose>
+        <mass>0.0404747</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_wrist_yaw_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_wrist_yaw.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_wrist_yaw_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_wrist_yaw.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name='joint_right_wheel' type='revolute'>
+      <pose relative_to='base_link'>0 -0.17035 0.0508 -1.5708 0 0</pose>
+      <parent>base_link</parent>
+      <child>link_right_wheel</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+        <dynamics>
+          <damping>21.75</damping>
+          <friction>10.48</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+    <link name='link_right_wheel'>
+      <pose relative_to='joint_right_wheel'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <pose>0 0 0.037544 0 -0 0</pose>
+        <mass>0.0042721</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+      <collision name='link_right_wheel_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_right_wheel.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='link_right_wheel_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://stretch_gazebo/meshes/link_right_wheel.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>
